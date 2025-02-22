@@ -1,0 +1,2 @@
+# cursorrules
+My .cursor/rules
