@@ -152,24 +152,17 @@ Determine if this is a persistent service or a CLI tool:
 - Allows users to override or pass arguments easily
 - Example: `CMD ["mytool", "--help"]`
 
+### Security Considerations
+See `references/security.md` for details:
+- Run as non-root user where possible
+- Don't bake secrets into images
+- Pin base image versions
+
+## Phase 2.1: OCI Image Spec Annotations and Internal Image Documentation
+
 ### OCI Image Spec annotations
 
-Where practical, include these OCI Image Spec annotations (https://github.com/opencontainers/image-spec/blob/main/annotations.md):
-
-- `LABEL org.opencontainers.image.created` - the date and time the image was created (ISO 8601)
-- `LABEL org.opencontainers.image.title` - the title of the image
-- `LABEL org.opencontainers.image.description` - a brief description of the image
-- `LABEL org.opencontainers.image.licenses` - the license(s) of the software in the image
-- `LABEL org.opencontainers.image.source` - the source code of the image (from $GIT_REPO)
-- `LABEL org.opencontainers.image.revision` - the revision of the image (from $GIT_REF)
-- `LABEL org.opencontainers.image.version` - the version of the image (semantic version from the repo, or git commit hash)
-- `LABEL org.opencontainers.image.authors` - the authors of the image
-- `LABEL org.opencontainers.image.vendor` - the vendor of the image (default: containerbot)
-- `LABEL org.opencontainers.image.base.name` - the base image name (from `FROM <base-image>`)
-- `LABEL org.opencontainers.image.base.digest` - the base image digest (use the `get_docker_image_digest.sh` script)
-- `LABEL org.opencontainers.image.url` - the URL of the image
-- `LABEL org.opencontainers.image.documentation` - the documentation of the image
-- `LABEL org.opencontainers.image.usage` - the usage of the image, eg `docker run -it --gpus all --rm <image> <command>` (this is an out-of-spec annotation that we should include anyway)
+Where practical, include [OCI Image Spec annotations](https://github.com/opencontainers/image-spec/blob/main/annotations.md) as described in `references/oci-annotations.md`.
 
 ### Internal image documentation
 
@@ -180,12 +173,6 @@ We should create a `/README.md` file in the root of the repository that contains
 - Further usage examples of the image, including any typical `-p PORT:PORT`, `-v $(pwd)/data:/data` and `-e ENV_VAR=value` options
 
 This may be generated inline in the Dockerfile, or if large, as an extra file like:  `COPY README.container.md /README.md`.
-
-### Security Considerations
-See `references/security.md` for details:
-- Run as non-root user where possible
-- Don't bake secrets into images
-- Pin base image versions
 
 ## Phase 2.5: .dockerignore Generation
 
@@ -261,6 +248,15 @@ If the container fails to run:
 - Verify any exposed ports are accessible
 - Test with sample input if applicable
 - If required, loop back to "Phase 3: Dockerfile Generation" and refine the Dockerfile based on the test results
+
+## Phase 5: Final Review
+
+One the build is successful and has be shown to be functional, do a final review of the Dockerfile and OCI labels to ensure they are correct.
+
+- Ensure the OCI LABELs, including `org.opencontainers.image.usage`, are consistent with the working example from functionality testing.
+- Ensure the `/README.md` examples are correct based on the functionality testing.
+
+If any changes are made, repeat the build and test process.
 
 ## Reference Files
 
