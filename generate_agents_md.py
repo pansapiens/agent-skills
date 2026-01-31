@@ -131,6 +131,14 @@ def collect_rules(rules_dir: Path) -> List[Tuple[str, str, Dict, str]]:
     return rules
 
 
+def bump_header_levels(content: str) -> str:
+    """
+    Increment every ATX-style markdown header by one level (# -> ##, ## -> ###, etc).
+    Only matches unindented headers at the start of a line.
+    """
+    return re.sub(r"^(#{1,6})(\s)", r"#\1\2", content, flags=re.MULTILINE)
+
+
 def format_frontmatter(frontmatter: Dict) -> str:
     """
     Format frontmatter dictionary as YAML string.
@@ -181,7 +189,7 @@ def generate_agents_md(rules: List[Tuple[str, str, Dict, str]], output_path: Pat
             lines.append(frontmatter_str)
             lines.append("")
         
-        lines.append(content)
+        lines.append(bump_header_levels(content))
         lines.append("")
     
     output_path.write_text("\n".join(lines), encoding="utf-8")
@@ -225,7 +233,7 @@ def main() -> None:
                 frontmatter_str = format_frontmatter(frontmatter)
                 lines.append(frontmatter_str)
                 lines.append("")
-            lines.append(content)
+            lines.append(bump_header_levels(content))
             lines.append("")
         sys.stdout.write("\n".join(lines))
     else:
