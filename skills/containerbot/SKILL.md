@@ -73,6 +73,10 @@ Map the dominant technology to an optimal base image:
 ### Dockerfile Structure
 
 ```dockerfile
+# Build like:
+#  docker buildx build -t image-name -f Dockerfile --build-arg GIT_REF=main .
+#
+
 # Metadata
 ARG GIT_REPO=https://github.com/owner/repo.git
 ARG GIT_REF=main
@@ -130,6 +134,7 @@ CMD ["python", "main.py", "--help"]
 - **Limit layers** - Combine related `RUN` instructions with `&&`
 - **No unnecessary packages** - Only install what's needed
 - **Add LABELs** - Source repo, description, maintainer
+- **Include the docker build command used** - as a comment at the top of the Dockerfile: `# Build like: docker buildx build -t image-name -f Dockerfile --build-arg GIT_REF=main .`
 
 ### CMD vs ENTRYPOINT
 
