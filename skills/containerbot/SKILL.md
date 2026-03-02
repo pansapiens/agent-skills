@@ -1,12 +1,20 @@
 ---
 name: containerbot
-description: Create a Dockerfile for a git repositories and build a container image. Use when a user wants to create a Dockerfile for a GitHub repo, containerize an application or troubleshoot Docker build failures.
+description: Create Dockerfiles for GitHub repos. Containerize apps or troubleshoot Docker build failures.
 compatibility: Requires docker, git, python3, and internet access for pulling base images and cloning repositories.
 ---
 
 # Containerbot
 
 Generate optimised Dockerfiles for GitHub repositories by analysing their structure, detecting technologies, and following Docker best practices.
+
+## When to Use This Skill
+
+Use this skill when you see:
+- "Create a Dockerfile for a GitHub repo"
+- "Containerize this application"
+- "Docker build is failing"
+- "Help me build a container image"
 
 ## Workflow
 
@@ -256,7 +264,7 @@ If the container fails to run:
 
 ## Phase 5: Final Review
 
-One the build is successful and has be shown to be functional, do a final review of the Dockerfile and OCI labels to ensure they are correct.
+Once the build is successful and has been shown to be functional, do a final review of the Dockerfile and OCI labels to ensure they are correct.
 
 - Ensure the OCI LABELs, including `org.opencontainers.image.usage`, are consistent with the working example from functionality testing.
 - Ensure the `/README.md` examples are correct based on the functionality testing.
