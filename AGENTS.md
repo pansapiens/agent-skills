@@ -90,6 +90,8 @@ If there is a CHANGELOG.md file, update it with any notable features or bug fixe
   - `Security` in case of vulnerabilities.
 - For `[Unreleased]`, we don't need to maintain a history of every intermediate change if a change was reverted or overrides a previous unreleased change (eg 'changed to use packageX version 1, then changed to use packageX version 2') - just document the changes relative to the last versioned release to the current state. You may update or remove text from the `[Unreleased]` section as required - you don't always need to append only.
 
+Keep dot points concise - list the change but don't elaborate on implementation detail.
+
 ## Code style
 
 ---

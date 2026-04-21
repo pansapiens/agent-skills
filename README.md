@@ -5,6 +5,6 @@ Edit the .cursor/rules directory to add/modify rules.
 
 To generate the AGENTS.md file, run:
 ```
-python generate_agents_md.py
+uv run generate_agents_md.py
 ```
 
