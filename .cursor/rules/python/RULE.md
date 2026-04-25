@@ -23,4 +23,4 @@ alwaysApply: false
   - Use -y for conda install and create.
   - Use the conda-forge and bioconda channels
   - If installing conda from scratch, prefer the miniforge3 distribution instead of miniconda3.
-
+- For determining default config file paths etc, used the `platformdirs` package following the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir/latest/)

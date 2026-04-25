@@ -109,6 +109,27 @@ alwaysApply: false
 - Follow the existing code style for capitalisation and punctuation for variable, function, class and method names
 - If you need clarification on any part of a task, ask for more information before proceeding with the implemention.
 
+## Config files
+
+---
+description: Preferences for implementing configuration file support in apps
+alwaysApply: false
+---
+
+- By default, prefer using TOML as a config file format
+- Support config auto-detected in the current working directory, and standard system paths like ~/.config/{app_name}/config.toml
+- For determining default config file paths, use the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir/latest/). Use the `platformdirs` package to achive this in Python.
+- Support -c / --config commandline options to specify a config file path explicity.
+- Ideally, every config file variable can be overriden by a corresponding environment variable and a commandline variable, eg for the variable 'foo.bar', the env var $APPNAME_FOO_BAR, or the --foo-bar commandline option would override.
+- Config precedence should be:
+  1. Commandline arguments
+  2. Environment variables (typically UPPERCASE and prefixed with APPNAME_)
+  3. Config file in current working directory
+  4. User config file
+  5. System config file
+  6. Default values
+- Allow environment variables to be used in config files, eg `${MY_VAR}`.
+
 ## Docker
 
 ---
@@ -213,6 +234,7 @@ alwaysApply: false
   - Use -y for conda install and create.
   - Use the conda-forge and bioconda channels
   - If installing conda from scratch, prefer the miniforge3 distribution instead of miniconda3.
+- For determining default config file paths etc, used the `platformdirs` package following the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir/latest/)
 
 ## R
 
