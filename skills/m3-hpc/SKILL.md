@@ -364,14 +364,21 @@ squeue -A yt41 --json | jq -r '.jobs[] | "\(.user_name) \(.job_state)"' | awk '{
 # Show why your jobs are pending
 squeue -u "${USER}" -t PENDING -o "%.10i %-20j %R"
 
-# Find long-running jobs (>2 hours / 7200 seconds) for an account (using --json and jq)
-squeue -A yt41 --json | jq -r '.jobs[] | select(.job_state == "RUNNING" and .run_time >= 7200) | "\(.job_id) \(.user_name) \(.run_time)"'
+# Estimated start time (%SE) and queue wait time (%Y)
+squeue -u "${USER}" -t PENDING -o "%.10i %-20j %20SE %10Y %R"
+
+# Find long-running jobs (>2 hours) for an account
+squeue -A yt41 -r -o "%.10i %-8u %.10M %j" | awk '$3 >= "2:00:00"'
 
 # M3-specific tools
 user_info           # disk quotas
 show_cluster         # cluster utilisation by node
 jobstats {jobid}     # detailed resource usage for a completed job
 ```
+
+### Useful squeue format fields
+
+For a comprehensive list of custom `squeue` format fields, modifiers, and alignment examples, see the [SLURM Command Reference Guide](../slurm-user/references/reference-guide.md).
 
 ### Looking up user details
 

@@ -86,6 +86,32 @@ To query the queue and print a summary table of running and pending jobs grouped
 squeue --json | jq -r '.jobs[] | "\(.user_name) \(.job_state)"' | awk '{run[$1]+=($2=="RUNNING"); pend[$1]+=($2=="PENDING")} END {for (u in run) printf "%-15s %-10d %-10d\n", u, run[u], pend[u]}' | sort -k2,2nr
 ```
 
+### What are the useful custom format fields for `squeue -o`?
+For customizing `squeue` output via `-o`/`--format`, standard and advanced specifiers include:
+
+| Specifier | Description |
+|-----------|-------------|
+| `%i` | Job ID |
+| `%j` | Job name |
+| `%u` | User name |
+| `%a` | Account associated with the job (project ID) |
+| `%q` | QoS (Quality of Service) name |
+| `%P` | Partition name |
+| `%t` | Job state (compact/one-letter form: `PD`, `R`, etc.) |
+| `%T` | Job state (extended/long form: `PENDING`, `RUNNING`, etc.) |
+| `%M` | Elapsed time (format: `days-hours:minutes:seconds` or `minutes:seconds`) |
+| `%l` | Time limit (allocated wall time) |
+| `%L` | Time left (remaining wall time before timeout) |
+| `%C` | Number of CPUs allocated/requested |
+| `%D` | Number of nodes allocated/requested |
+| `%N` | Node list (list of allocated nodes, or executing node name) |
+| `%b` | Generic resources (GRES) requested (e.g. `gpu:1` for GPU type/count) |
+| `%SE` | **Estimated start time** (from SLURM's starttime plugin) |
+| `%Y` | Time waiting in queue (pending jobs) |
+| `%R` | Reason for job state (for pending jobs: `Priority`, `Resources`, etc.) |
+
+Format specifiers support width and alignment: `%.10i` (right-aligned, 10 chars), `%-20j` (left-aligned, 20 chars).
+
 ---
 
 ## Job Control & Execution
