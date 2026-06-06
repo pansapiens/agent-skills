@@ -177,7 +177,7 @@ def generate_agents_md(rules: List[Tuple[str, str, Dict, str]], output_path: Pat
         rules: List of (folder_name, section_name, frontmatter, content) tuples
         output_path: Path to write AGENTS.md
     """
-    lines = ["# AGENTS.md", ""]
+    lines = [f"# {output_path.name}", ""]
     
     for folder_name, section_name, frontmatter, content in rules:
         lines.append(f"## {section_name}")
@@ -204,43 +204,67 @@ def main() -> None:
     parser.add_argument(
         "--rules-dir",
         type=Path,
-        default=Path(".cursor/rules"),
+        default=None,
         help="Path to rules directory (default: .cursor/rules)",
     )
     parser.add_argument(
         "-o",
         "--output",
         type=Path,
-        default=Path("AGENTS.md"),
+        default=None,
         help="Output file path (default: AGENTS.md, use - for stdout)",
     )
     
     args = parser.parse_args()
     
-    rules = collect_rules(args.rules_dir)
-    
-    if not rules:
-        logging.error("No rules found")
-        return
-    
-    if args.output == Path("-"):
-        # Write to stdout
-        lines = ["# AGENTS.md", ""]
-        for folder_name, section_name, frontmatter, content in rules:
-            lines.append(f"## {section_name}")
-            lines.append("")
-            if frontmatter:
-                frontmatter_str = format_frontmatter(frontmatter)
-                lines.append(frontmatter_str)
+    if args.rules_dir is not None or args.output is not None:
+        rules_dir = args.rules_dir or Path(".cursor/rules")
+        output = args.output or Path("AGENTS.md")
+        
+        rules = collect_rules(rules_dir)
+        if not rules:
+            logging.error(f"No rules found in {rules_dir}")
+            return
+        
+        if output == Path("-"):
+            # Write to stdout
+            header = "AGENTS.caveman.md" if "caveman" in str(rules_dir) else "AGENTS.md"
+            lines = [f"# {header}", ""]
+            for folder_name, section_name, frontmatter, content in rules:
+                lines.append(f"## {section_name}")
                 lines.append("")
-            lines.append(bump_header_levels(content))
-            lines.append("")
-        sys.stdout.write("\n".join(lines))
+                if frontmatter:
+                    frontmatter_str = format_frontmatter(frontmatter)
+                    lines.append(frontmatter_str)
+                    lines.append("")
+                lines.append(bump_header_levels(content))
+                lines.append("")
+            sys.stdout.write("\n".join(lines))
+        else:
+            generate_agents_md(rules, output)
     else:
-        generate_agents_md(rules, args.output)
+        # Default behavior: generate both if they exist
+        generated = False
+        default_rules = Path(".cursor/rules")
+        if default_rules.exists():
+            rules = collect_rules(default_rules)
+            if rules:
+                generate_agents_md(rules, Path("AGENTS.md"))
+                generated = True
+        
+        caveman_rules = Path(".cursor/rules-caveman")
+        if caveman_rules.exists():
+            rules = collect_rules(caveman_rules)
+            if rules:
+                generate_agents_md(rules, Path("AGENTS.caveman.md"))
+                generated = True
+                
+        if not generated:
+            logging.error("No rules directories (.cursor/rules or .cursor/rules-caveman) found")
 
 
 if __name__ == "__main__":
     setup_logging()
     main()
+
 
