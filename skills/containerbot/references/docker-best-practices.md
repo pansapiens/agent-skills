@@ -15,13 +15,16 @@ Order instructions from least to most frequently changing:
 
 ```dockerfile
 # Good: Dependencies cached separately from code
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
+ADD https://raw.githubusercontent.com/owner/repo/main/requirements.txt /tmp/
+RUN pip install -r /tmp/requirements.txt
+# Update CACHE_BUST to force a fresh clone
+ARG CACHE_BUST=1
+RUN git clone https://github.com/owner/repo.git /app
 
 # Bad: Any code change invalidates dependency cache
-COPY . .
-RUN pip install -r requirements.txt
+ARG CACHE_BUST=1
+RUN git clone https://github.com/owner/repo.git /app
+RUN pip install -r /app/requirements.txt
 ```
 
 ## Combining RUN Instructions
@@ -45,7 +48,9 @@ RUN apt-get install -y git
 
 ## Dependency Installation and Cache Management
 
-Use cache mounts (`--mount=type=cache`) to persist package caches across builds. This speeds up rebuilds even when layers are invalidated. Requires BuildKit (Docker 23.0+ or `DOCKER_BUILDKIT=1`).
+There are two primary approaches to managing package caches:
+1. Preferred: **Use Cache Mounts (`--mount=type=cache`)**: Persists package caches across builds to speed up rebuilds. Because the cache mount is not committed to the final image, you **should not** clean up the cache directories (e.g. via `rm -rf`) in the command, as doing so will delete the persistent cache on the host. Requires BuildKit (Docker 23.0+ or `DOCKER_BUILDKIT=1`).
+2. Alternative: **Clean Cache Directories**: If not using cache mounts, you **must** clean up the cache directories in the same `RUN` instruction (e.g. `&& rm -rf /var/lib/apt/lists/*`) to prevent them from bloating the final image layers.
 
 ### apt (Debian/Ubuntu)
 ```dockerfile

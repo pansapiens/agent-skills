@@ -78,6 +78,8 @@ Map the dominant technology to an optimal base image:
 | Java (Gradle) | `gradle:jdk21` |
 | PHP | `php:8.x-fpm` or `php:8.x-cli` |
 
+For mixed technologies, or cases where many system packages are needed, using an `ubuntu`, `debian` or `alpine` image may be preferable.
+
 ### Dockerfile Structure
 
 ```dockerfile
@@ -133,10 +135,11 @@ CMD ["python", "main.py", "--help"]
 ### Key Guidelines
 
 - **Use `ARG` for repo/branch** - Makes the Dockerfile reusable
-- **Use `git clone`** - Prefer over `COPY` for reproducibility
+- **Use `RUN git clone`** - AVOID using `COPY` for the source code, p
+- **Prefer** including short scripts (eg `entrypoint.sh`) as heredocs rather than external files.
 - **`/app` as WORKDIR** - Standard convention
 - **Dependencies before code** - Optimises layer caching
-- **Clean package caches** - Reduces image size
+- **Use cache mounts** for package installs where possible (eg `--mount=type=cache,target=/root/.cache/pip`)
 - **Use `mamba`/`uv`** - Faster than conda/pip
 - **Multi-stage builds** - Use for compiled languages or when build deps aren't needed at runtime; avoid for simple interpreted apps where they add unnecessary complexity
 - **Limit layers** - Combine related `RUN` instructions with `&&`
