@@ -50,6 +50,10 @@ Use this skill when you see:
 - "How can I monitor my job's CPU/memory/GPU usage or verify resource efficiency on M3?"
 - "How do I list, load, or troubleshoot environment modules on M3?"
 
+## No sudo / admin access
+
+You DO NOT have permission to run commands as `root` using `sudo`. Never attempt to run anything with `sudo`. If a command appears to require `sudo`, assume you are approaching things the wrong way.
+
 ## Storage locations
 
 M3 has three key shared filesystems, plus node-local temporary storage:
