@@ -1,4 +1,4 @@
-# Agent Skill
+# Agent Skills
 
 My handcrafted agent skills and `AGENTS.md`.
 
