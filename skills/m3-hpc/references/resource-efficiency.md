@@ -2,6 +2,11 @@
 
 Since the cluster is a shared resource, managing resource utilisation efficiently is critical. Minimising resource requests to only what your job requires will help reduce your queue time and speed up your overall time to solution.
 
+## Login nodes & good behaviour
+
+DO NOT run resource-intensive commands on the login nodes. Use Strudel, an `sbatch` or `srun` job instead.
+For long running `rsync` or `tar` extractions, use data transfer nodes, `m3-dtn.massive.org.au` (or `m3-dtn1` and `m3-dtn2`).
+
 ---
 
 ## Key Resources to Optimise

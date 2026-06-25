@@ -54,6 +54,11 @@ Use this skill when you see:
 
 You DO NOT have permission to run commands as `root` using `sudo`. Never attempt to run anything with `sudo`. If a command appears to require `sudo`, assume you are approaching things the wrong way.
 
+## Login nodes & good behaviour
+
+DO NOT run resource-intensive commands on the login nodes. Use Strudel, an `sbatch` or `srun` job instead.
+For long running `rsync` or `tar` extractions, use data transfer nodes, `m3-dtn.massive.org.au` (or `m3-dtn1` and `m3-dtn2`).
+
 ## Storage locations
 
 M3 has three key shared filesystems, plus node-local temporary storage:
