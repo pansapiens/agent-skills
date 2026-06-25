@@ -476,7 +476,7 @@ srun ./my_hybrid_program
 
 ## Reference guides
 
-- **SLURM Command Reference Guide**: For advanced node and partition querying, QOS/limits checking, custom monitoring commands, and regex job cancellation, see the [SLURM Command Reference Guide](file:///home/perry/projects/agent-skills/skills/slurm-user/references/reference-guide.md).
+- **SLURM Command Reference Guide**: For advanced node and partition querying, QOS/limits checking, custom monitoring commands, and regex job cancellation, see the [SLURM Command Reference Guide](references/reference-guide.md).
 
 ## Official documentation
 

@@ -16,7 +16,7 @@ To connect to the M3 login nodes via SSH, run the following command using your *
 ssh {username}@m3.massive.org.au
 ```
 
-For setting up SSH keys, see the official [M3 SSH Connection](https://docs.erc.monash.edu/Compute/HPC/M3/ConnectingToM3/SSH/) documentation. For interactive graphical sessions, remote desktop access, or setting up VS Code, see the [Strudel Desktops and IDE Setup](file:///home/perry/projects/agent-skills/skills/m3-hpc/references/strudel.md) reference document.
+For setting up SSH keys, see the official [M3 SSH Connection](https://docs.erc.monash.edu/Compute/HPC/M3/ConnectingToM3/SSH/) documentation. For interactive graphical sessions, remote desktop access, or setting up VS Code, see the [Strudel Desktops and IDE Setup](references/strudel.md) reference document.
 
 ## Related skills
 
@@ -153,11 +153,11 @@ envs_dirs:
 
 ## Reference guides
 
-- **Data Collections**: For locations, access requirements, and requesting new datasets, see the [datasets.md](file:///home/perry/projects/agent-skills/skills/m3-hpc/references/datasets.md) reference document.
-- **Strudel & IDEs**: To launch interactive desktops, configure VS Code Remote, run custom JupyterLab environments, or set up RStudio, see the [Strudel Desktops and IDE Setup](file:///home/perry/projects/agent-skills/skills/m3-hpc/references/strudel.md) reference document.
-- **Multithreaded Jobs**: To run parallel jobs using multithreading, OpenMP, or hybrid MPI/OpenMP configurations, see the [Multithreaded and Hybrid Jobs](file:///home/perry/projects/agent-skills/skills/m3-hpc/references/multithreading.md) reference document.
-- **Resource Efficiency**: To monitor active jobs, audit completed jobs, and optimise resource usage, see the [Resource Efficiency and Monitoring](file:///home/perry/projects/agent-skills/skills/m3-hpc/references/resource-efficiency.md) reference document.
-- **Environment Modules**: To search, load, unload, list, or inspect software environment modules and request licensed software, see the [Environment Modules](file:///home/perry/projects/agent-skills/skills/m3-hpc/references/modules.md) reference document.
+- **Data Collections**: For locations, access requirements, and requesting new datasets, see the [datasets.md](references/datasets.md) reference document.
+- **Strudel & IDEs**: To launch interactive desktops, configure VS Code Remote, run custom JupyterLab environments, or set up RStudio, see the [Strudel Desktops and IDE Setup](references/strudel.md) reference document.
+- **Multithreaded Jobs**: To run parallel jobs using multithreading, OpenMP, or hybrid MPI/OpenMP configurations, see the [Multithreaded and Hybrid Jobs](references/multithreading.md) reference document.
+- **Resource Efficiency**: To monitor active jobs, audit completed jobs, and optimise resource usage, see the [Resource Efficiency and Monitoring](references/resource-efficiency.md) reference document.
+- **Environment Modules**: To search, load, unload, list, or inspect software environment modules and request licensed software, see the [Environment Modules](references/modules.md) reference document.
 
 ## Partitions and QoS
 
@@ -416,7 +416,7 @@ scancel -u "${USER}"
 scontrol show job {jobid} --json
 ```
 
-For detailed tips on monitoring active jobs and ensuring resource efficiency (such as matching requested RAM/CPUs, checking GPU utilisation, and socket/node planning), see the [Resource Efficiency and Monitoring](file:///home/perry/projects/agent-skills/skills/m3-hpc/references/resource-efficiency.md) reference document.
+For detailed tips on monitoring active jobs and ensuring resource efficiency (such as matching requested RAM/CPUs, checking GPU utilisation, and socket/node planning), see the [Resource Efficiency and Monitoring](references/resource-efficiency.md) reference document.
 
 ## Why did my job fail?
 
@@ -492,7 +492,7 @@ Check why a job ended: `sacct -j {jobid} --format=JobID,State,ExitCode,DerivedEx
 
 ## Software on M3
 
-Software is managed via [environment modules](https://docs.erc.monash.edu/Compute/HPC/M3/Software/). For a comprehensive guide on searching, loading, unloading, diagnosing, and requesting access to licensed software, see the [Environment Modules](file:///home/perry/projects/agent-skills/skills/m3-hpc/references/modules.md) reference document.
+Software is managed via [environment modules](https://docs.erc.monash.edu/Compute/HPC/M3/Software/). For a comprehensive guide on searching, loading, unloading, diagnosing, and requesting access to licensed software, see the [Environment Modules](references/modules.md) reference document.
 
 Common commands:
 
