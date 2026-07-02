@@ -35,11 +35,11 @@ Open the command palette (`F1` or `Ctrl+Shift+P` / `Cmd+Shift+P`), select **Remo
 
 - **macOS and Linux**:
   ```bash
-  ssh -l username m3-remote-vscode -o ProxyCommand="ssh username@m3.massive.org.au /usr/local/sv2/sshnc.sh"
+  ssh -l username m3-remote-vscode -o StrictHostKeyChecking=accept-new -o ProxyCommand="ssh username@m3.massive.org.au /usr/local/sv2/sshnc.sh"
   ```
 - **Windows**:
   ```bash
-  ssh -l username m3-remote-vscode -o ProxyCommand="ssh.exe username@m3.massive.org.au /usr/local/sv2/sshnc.sh"
+  ssh -l username m3-remote-vscode -o StrictHostKeyChecking=accept-new -o ProxyCommand="ssh.exe username@m3.massive.org.au /usr/local/sv2/sshnc.sh"
   ```
 
 This `ProxyCommand` executes `sshnc.sh` on M3, which automatically routes your local VS Code SSH traffic to the compute node running your interactive Strudel session.

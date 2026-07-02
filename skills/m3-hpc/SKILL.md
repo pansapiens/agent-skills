@@ -42,47 +42,44 @@ This includes instances of `codex` and `claude`, and IDEs that launch remote ssh
 
 You will need to make some of these changes yourself, and guide the user through the steps. Note that the alternative is to use a Strudel interactive session and run the the commandline agent there - see the `references/strudel.md` reference document for more information.
 
-**Step 1:** On localhost, update the users SSH config (`~/.ssh/config` or `/Users/{username}/.ssh/config`) to use a `ProxyJump` to access compute nodes via the login nodes:
+The approach uses M3's `sshnc.sh` script, which automatically discovers your running compute node by looking for SLURM jobs named `VS.Code`, `Jupyter`, or `Terminal` via `squeue`.
+
+**Step 1:** On localhost, add an SSH config entry (`~/.ssh/config` or `/Users/{username}/.ssh/config`) that uses `sshnc.sh` as a `ProxyCommand`:
 
 ```
-Host m3a* m3b* m3c* m3d* m3e* m3f* m3g* m3h* m3i* m3j* m3k* m3l* m3m* m3n* m3o* m3p* m3q* m3r* m3s* m3t* m3u* m3v* m3w* m3x* m3y* m3z*
+Host m3-remote
   User {m3_username}
-  ProxyJump m3.massive.org.au
   StrictHostKeyChecking accept-new
+  ProxyCommand ssh {m3_username}@m3.massive.org.au /usr/local/sv2/sshnc.sh
 ```
-
-You can use `ssh {username}@m3.massive.org.au sinfo -o '%n'` to list all the node names - the `Host` line may need updating as node are added/removed from the cluster.
 
 > `StrictHostKeyChecking accept-new` is required here: compute node hostnames are assigned per-job and are frequently "new" to your `known_hosts` file even though the underlying host key is already trusted (M3 compute nodes share host keys across the fleet). Without this setting, the first connection to a newly-allocated node will fail with `Host key verification failed` in any non-interactive session (no TTY to confirm the prompt) — this includes agents and automated scripts.
 
-**Step 2:** Start an interactive session on a compute node, eg a 72 hour job. Since this runs on localhost, remember to prefix with `ssh {username}@m3.massive.org.au` per the rule above, and wrap the whole remote command in one pair of quotes so `--wrap "sleep 72h"` survives the trip intact (splitting the quoting naively will break the `--wrap` argument):
+**Step 2:** Start an interactive session on a compute node, eg a 72 hour job. The job name **must** match one of `VS.Code`, `Jupyter`, or `Terminal` so that `sshnc.sh` can discover it. Since this runs on localhost, remember to prefix with `ssh {username}@m3.massive.org.au` per the rule above, and wrap the whole remote command in one pair of quotes so `--wrap "sleep 72h"` survives the trip intact:
 
 ```bash
-JOBID=$(ssh {username}@m3.massive.org.au 'sbatch --job-name interactive --time=0-72:00 --mem=4G --ntasks=1 --cpus-per-task=1 --partition=comp --parsable --wrap "sleep 72h"')
+ssh {username}@m3.massive.org.au 'sbatch --job-name Terminal --time=0-72:00 --mem=4G --ntasks=1 --cpus-per-task=1 --partition=comp --wrap "sleep 72h"'
 ```
 
-Note the job ID captured in `${JOBID}`.
-
-Wait a short time for the job to be allocated, then find the node where it is running like:
+Wait for the job to start running:
 ```bash
-sleep 10
-ssh {username}@m3.massive.org.au "sacct --format=nodelist -X -j ${JOBID}" | tail -n1
+ssh {username}@m3.massive.org.au squeue -u {username} --format="%j %T %B" --noheader
 ```
-(if the result is 'None assigned', wait longer and then query `sacct` again)
+(repeat until the state is `RUNNING` and a node is assigned)
 
-**Step 3:** Direct the user to connect their remote session to that compute node - the `.ssh/config` should ensure they are executing the agent process on that compute node, via the ProxyJump:
-
-eg - this might be:
+**Step 3:** Connect to the compute node via tmux. The `-A` flag creates a new tmux session on the first connection, or reattaches to the existing one if you reconnect. The `sshnc.sh` proxy automatically routes you to the right node — no need to look up the node name manually:
 
 ```bash
-# first on localhost
-ssh m3c422
+# from localhost — creates (or reattaches to) a persistent tmux session
+ssh -t m3-remote tmux new-session -A -s agent
 
-# then in the new shell running on on m3c422
+# now inside tmux on the compute node
 claude
 ```
 
-Or in a the VSCode / Cursor IDE, direct the user to connect via SSH remote to the compute node, eg `m3c422`.
+If your SSH connection drops, `claude` (or any other process) keeps running inside tmux. Reconnect with the same command — `tmux -A` will reattach to the existing session.
+
+For VSCode / Cursor IDE, connect via **Remote-SSH: Connect to Host...** and select `m3-remote`. IDE connections don't use tmux but still benefit from `sshnc.sh` auto-routing.
 
 
 ## Related skills
