@@ -1,14 +1,14 @@
 
 ## JOURNAL.md
 
-Document each step you take with reproducible commands in a datetime stamped (`date -Is`) JOURNAL.md file. JOURNAL.md should be considered append-only.
+Document each step you take with reproducible commands in a datetime stamped (`date -Is`) JOURNAL.md file, including git commits it relates to. JOURNAL.md should be considered append-only.
 
 eg:
 
 ----
 
 ```markdown
-## 2026-06-19T12:11:39+10:00
+## 2026-06-19T12:11:39+10:00 (commits: 123456, abcdefg)
 
 Plots in the "Save outputs" cell now also write a PNG alongside each PDF (`dpi=200`), since PNGs
 are easier to drop into chat/slides/docs than PDFs. Updated README.md's Files/Outputs sections to
