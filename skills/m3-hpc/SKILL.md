@@ -34,7 +34,7 @@ ssh {username}@m3.massive.org.au sbatch sbatch_script.sh
 
 When running jobs this way, don't confuse which files are local and which are on the M3 filesystem !
 
-## Running an AI agent on M3
+## Running an AI agents on M3
 
 DO NOT run an AI agent instance _directly_ on the M3 login nodes (`m3-login*` and `m3-dtn*`). 
 If you are directly running on a login node right now, stop the agent and disconnect, and follow the instructions below. 
