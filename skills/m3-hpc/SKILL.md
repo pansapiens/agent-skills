@@ -18,6 +18,73 @@ ssh {username}@m3.massive.org.au
 
 For setting up SSH keys, see the official [M3 SSH Connection](https://docs.erc.monash.edu/Compute/HPC/M3/ConnectingToM3/SSH/) documentation. For interactive graphical sessions, remote desktop access, or setting up VS Code, see the [Strudel Desktops and IDE Setup](references/strudel.md) reference document.
 
+## Running jobs from localhost via SSH
+
+If the agent is running on localhost and not an `m3*` node, you **MUST** prefix all commands with `ssh {username}@m3.massive.org.au`, eg:
+
+For short commands, use:
+```bash
+ssh {username}@m3.massive.org.au srun --time=0-00:30 --mem=4G --ntasks=1 --cpus-per-task=1 --partition=shortq quick_task.py
+```
+
+For job submissions use:
+```bash
+ssh {username}@m3.massive.org.au sbatch sbatch_script.sh
+```
+
+When running jobs this way, don't confuse which files are local and which are on the M3 filesystem !
+
+## Running an AI agent on M3
+
+DO NOT run an AI agent instance _directly_ on the M3 login nodes (`m3-login*` and `m3-dtn*`). 
+If you are directly running on a login node right now, stop the agent and disconnect, and follow the instructions below. 
+This includes instances of `codex` and `claude`, and IDEs that launch remote ssh sessions like `.vscode-remote`, `.cursor-server`, among others.
+
+You will need to make some of these changes yourself, and guide the user through the steps. Note that the alternative is to use a Strudel interactive session and run the the commandline agent there - see the `references/strudel.md` reference document for more information.
+
+**Step 1:** On localhost, update the users SSH config (`~/.ssh/config` or `/Users/{username}/.ssh/config`) to use a `ProxyJump` to access compute nodes via the login nodes:
+
+```
+Host m3a* m3b* m3c* m3d* m3e* m3f* m3g* m3h* m3i* m3j* m3k* m3l* m3m* m3n* m3o* m3p* m3q* m3r* m3s* m3t* m3u* m3v* m3w* m3x* m3y* m3z*
+  User {m3_username}
+  ProxyJump m3.massive.org.au
+  StrictHostKeyChecking accept-new
+```
+
+You can use `ssh {username}@m3.massive.org.au sinfo -o '%n'` to list all the node names - the `Host` line may need updating as node are added/removed from the cluster.
+
+> `StrictHostKeyChecking accept-new` is required here: compute node hostnames are assigned per-job and are frequently "new" to your `known_hosts` file even though the underlying host key is already trusted (M3 compute nodes share host keys across the fleet). Without this setting, the first connection to a newly-allocated node will fail with `Host key verification failed` in any non-interactive session (no TTY to confirm the prompt) — this includes agents and automated scripts.
+
+**Step 2:** Start an interactive session on a compute node, eg a 72 hour job. Since this runs on localhost, remember to prefix with `ssh {username}@m3.massive.org.au` per the rule above, and wrap the whole remote command in one pair of quotes so `--wrap "sleep 72h"` survives the trip intact (splitting the quoting naively will break the `--wrap` argument):
+
+```bash
+JOBID=$(ssh {username}@m3.massive.org.au 'sbatch --job-name interactive --time=0-72:00 --mem=4G --ntasks=1 --cpus-per-task=1 --partition=comp --parsable --wrap "sleep 72h"')
+```
+
+Note the job ID captured in `${JOBID}`.
+
+Wait a short time for the job to be allocated, then find the node where it is running like:
+```bash
+sleep 10
+ssh {username}@m3.massive.org.au "sacct --format=nodelist -X -j ${JOBID}" | tail -n1
+```
+(if the result is 'None assigned', wait longer and then query `sacct` again)
+
+**Step 3:** Direct the user to connect their remote session to that compute node - the `.ssh/config` should ensure they are executing the agent process on that compute node, via the ProxyJump:
+
+eg - this might be:
+
+```bash
+# first on localhost
+ssh m3c422
+
+# then in the new shell running on on m3c422
+claude
+```
+
+Or in a the VSCode / Cursor IDE, direct the user to connect via SSH remote to the compute node, eg `m3c422`.
+
+
 ## Related skills
 
 For general SLURM command syntax (squeue, sacct, scontrol, scancel, srun, sbatch formatting), **always also consult the [SLURM User](../slurm-user/SKILL.md) skill**. That skill covers:
