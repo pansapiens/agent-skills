@@ -172,6 +172,9 @@ M3 uses SLURM partitions and Quality of Service (QoS) settings to manage access 
 | `genomicsb` | Genomics burst | Requires QoS `--qos=genomicsb` |
 | `desktop` | Strudel interactive desktops | Used by Strudel, not typically submitted manually |
 
+> The `desktop` partition is intended for interactive sessions only started using Strudel, and NOT for running large batch jobs.
+> Submit large non-interactive batch jobs to `comp`, `gpu`, `shortq`, or `genomics`/`genomicsb` as approriate.
+
 ### Interruptible jobs (`--qos=irq`)
 
 The `irq` QoS allows users to access additional partitions and resources that they normally do not have access to (such as the `genomics`, `genomicsb`, `fit`, and `fitc` partitions).
