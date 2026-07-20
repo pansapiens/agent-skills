@@ -417,8 +417,8 @@ sacct -j {jobid} --json
 # Parsable pipe-delimited output without trailing delimiter (recommended for programmatic parsing)
 sacct -j {jobid} --parsable2 --format=JobID,JobName,State,ExitCode,Elapsed,MaxRSS
 
-# M3-specific: detailed job stats
-jobstats {jobid}
+# M3-specific: detailed job stats - takes multiple job IDs
+jobstats --json {jobid}
 ```
 
 When reviewing job history, check for resource waste:
@@ -449,7 +449,7 @@ squeue -A yt41 -r -o "%.10i %-8u %.10M %j" | awk '$3 >= "2:00:00"'
 # M3-specific tools
 user_info           # disk quotas
 show_cluster         # cluster utilisation by node
-jobstats {jobid}     # detailed resource usage for a completed job
+jobstats --json {jobid}     # detailed resource usage for a completed job
 ```
 
 ### Useful squeue format fields
@@ -550,7 +550,7 @@ Check why a job ended: `sacct -j {jobid} --format=JobID,State,ExitCode,DerivedEx
 - `user_info` — shows your disk quotas for home, project and scratch
 - `show_cluster` — shows cluster utilisation by node
 - `cinfo` — shows cluster information (alternative to `show_cluster`)
-- `jobstats {jobid}` — shows detailed resource usage for a specific job
+- `jobstats {jobid}` — shows detailed resource usage for a specific job. Can take multiple job IDs, `--json` flag 
 - `ncdu {path}` — interactive disk usage viewer (useful for finding what is filling your quota)
 - `mon_qos` — shows detailed info about the QoS available on M3, and which ones you personally have access to
 - `mon_sacct` — shows detailed info about a completed job

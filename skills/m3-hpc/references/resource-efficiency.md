@@ -61,7 +61,7 @@ To view resource efficiency after a job has completed, use these tools:
 
 - **`jobstats` (M3-specific)**: Shows a detailed breakdown of CPU and memory utilisation for a job.
   ```bash
-  jobstats {jobid}
+  jobstats --no-color --json {jobid}
   ```
 - **`sacct`**: Query Slurm history to compare requested vs. actual usage.
   ```bash
