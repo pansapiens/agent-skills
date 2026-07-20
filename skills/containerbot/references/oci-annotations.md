@@ -48,3 +48,11 @@ OCI Image Spec annotations are a way to add metadata to a Docker image via the `
   - This SHOULD NOT reference any other images used to generate the contents of the image (e.g., multi-stage Dockerfile builds).
   - If the `image.base.name` annotation is specified, the `image.base.digest` annotation SHOULD be the digest of the manifest referenced by the `image.ref.name` annotation.
 - `LABEL org.opencontainers.image.usage=...` — Usage of the image, e.g. `docker run -it --gpus all --rm <image> <command>`. Out-of-spec annotation but often included in the wild, so we include it.
+
+## GitHub Container Registry (GHCR) Supported Annotations
+
+The following annotation keys are supported by the GitHub Container Registry. You MUST always include these keys in the Dockerfile `LABEL` instructions:
+
+- `org.opencontainers.image.source` — The URL of the repository associated with the package. This is used to connect the repository to the package.
+- `org.opencontainers.image.description` — A free-text description of the container, limited to 512 characters. This description will appear on the package page, below the name of the package.
+- `org.opencontainers.image.licenses` — An SPDX license identifier such as "MIT," limited to 256 characters. The license will appear on the package page, in the "Details" sidebar.

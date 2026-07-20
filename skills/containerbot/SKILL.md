@@ -94,7 +94,8 @@ ARG GIT_REF=main
 FROM <base-image>
 
 LABEL org.opencontainers.image.source="${GIT_REPO}"
-LABEL org.opencontainers.image.description="<brief description>"
+LABEL org.opencontainers.image.description="<free text description of the container>"
+LABEL org.opencontainers.image.licenses="<SPDX-license-identifier>"
 
 # System dependencies (combine into single RUN)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -144,7 +145,7 @@ CMD ["python", "main.py", "--help"]
 - **Multi-stage builds** - Use for compiled languages or when build deps aren't needed at runtime; avoid for simple interpreted apps where they add unnecessary complexity
 - **Limit layers** - Combine related `RUN` instructions with `&&`
 - **No unnecessary packages** - Only install what's needed
-- **Add LABELs** - Source repo, description, maintainer
+- **Add LABELs** - Require annotations supported by GHCR (source repo, description, and licenses) as well as other relevant OCI annotations.
 - **Include the docker build command used** - as a comment at the top of the Dockerfile: `# Build like: docker buildx build -t image-name -f Dockerfile --build-arg GIT_REF=main .`
 
 ### CMD vs ENTRYPOINT
@@ -179,6 +180,11 @@ See `references/security.md` for details:
 ### OCI Image Spec annotations
 
 Where practical, include [OCI Image Spec annotations](https://github.com/opencontainers/image-spec/blob/main/annotations.md) as described in `references/oci-annotations.md`.
+
+You MUST always include the annotations supported by GitHub Container Registry (ghcr.io) in the Dockerfile as `LABEL` instructions:
+- `org.opencontainers.image.source`: The URL of the repository associated with the package (e.g. `"${GIT_REPO}"`).
+- `org.opencontainers.image.description`: A free-text, text-only description of the container, limited to 512 characters.
+- `org.opencontainers.image.licenses`: An SPDX license identifier such as "MIT", limited to 256 characters.
 
 ### Internal image documentation
 
