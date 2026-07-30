@@ -53,15 +53,16 @@ Arpeggio's `-s` / `--selection` flag tells arpeggio which atoms to use as the qu
 RESNAME:<three_letter_code>
 ```
 
-Fields can be omitted. Examples:
+Fields can be left empty, but all three `/` separators are required — arpeggio rejects `/A/` with `Invalid selector`. Examples:
 
 | Selection | Meaning |
 |-----------|---------|
-| `/A/` | All atoms in chain A |
+| `/A//` | All atoms in chain A |
 | `/A/508/` | All atoms in residue 508 of chain A |
 | `/A/310/CA` | Only the CA atom of residue 310, chain A |
+| `/A-2//` | All atoms in chain `A-2` (chain IDs from RCSB assembly files may contain hyphens) |
 | `RESNAME:HEM` | All atoms in HEM (heme) residues |
-| `-s /A/ /B/` | Multiple selections (chain A and chain B) |
+| `-s /A// /B//` | Multiple selections (chain A and chain B) |
 
 When no selection is given, the entire structure is analysed.
 

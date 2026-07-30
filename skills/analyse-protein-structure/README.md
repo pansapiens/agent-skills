@@ -71,6 +71,8 @@ See [SKILL.md](SKILL.md) for detailed documentation including:
 - Common use cases
 - Troubleshooting guide
 
+See [references/biological-assemblies.md](references/biological-assemblies.md) for asymmetric units vs biological assemblies, symmetry mates and crystal contacts — read this before analysing any protein–protein interface from a crystal structure.
+
 See [references/pdb-images-usage.md](references/pdb-images-usage.md) for visualization guide.
 
 ## Examples
