@@ -1,0 +1,57 @@
+{
+  "skill_name": "batari-basic",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Make me an Atari 2600 Pong game in batari Basic. Left paddle = player0 controlled by joystick up/down. Right paddle = player1 controlled by simple AI that follows the ball. The ball bounces off the top and bottom edges and off both paddles; a point is scored when the ball passes a paddle; the score shows at the bottom of the screen; after a point the ball serves again from the center. Compile it with 2600bas and iterate until it compiles cleanly. Save the final game as pong.bas (plus its pong.bas.bin).",
+      "expected_output": "pong.bas that compiles to a valid 4K ROM, with joystick-controlled left paddle, AI right paddle, bouncing ball, scoring, and serve reset",
+      "files": [],
+      "expectations": [
+        "pong.bas exists in the outputs directory",
+        "The submitted pong.bas compiles cleanly: 2600bas prints 'Complete. (0)' and produces a ROM",
+        "A .bas.bin ROM is produced whose size is a power of 2 (at least 4096 bytes)",
+        "Left paddle is moved by joystick up/down (joy0up/joy0down affect player0y)",
+        "Ball bounces off the top and bottom of the screen (ball y compared against screen limits and direction reverses)",
+        "Right paddle AI: player1y moves toward the ball's y position",
+        "Score increases when the ball passes a paddle",
+        "Ball is reset toward the screen center after a point",
+        "No invalid bB syntax remains (no endif keyword, no == operator, no colon-terminated labels)"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Write a small batari Basic game for the Atari 2600: a maze drawn with the playfield. The player sprite moves through the maze with the joystick and cannot pass through playfield walls. Scattered in the maze are items (drawn as playfield pixels); when the player touches an item it disappears and the score goes up by 100. When all items are collected the screen flashes and shows a win state until the game is reset. Compile with 2600bas and fix all errors until it builds. Save the final game as maze.bas (plus its maze.bas.bin).",
+      "expected_output": "maze.bas that compiles to a valid ROM, with playfield maze, wall collision blocking movement, collectible playfield items worth 100, and a win-flash state",
+      "files": [],
+      "expectations": [
+        "maze.bas exists in the outputs directory",
+        "The submitted maze.bas compiles cleanly: 2600bas prints 'Complete. (0)' and produces a ROM",
+        "A .bas.bin ROM is produced whose size is a power of 2 (at least 4096 bytes)",
+        "A playfield: block defines visible maze walls",
+        "The player cannot pass through walls: collision(player0,playfield) is checked (and the move is undone or blocked)",
+        "Player moves with the joystick (joy0left/right/up/down all handled)",
+        "Items are playfield pixels removed when collected (pfpixel ... off or equivalent)",
+        "Score increases by 100 per item collected",
+        "A win state exists when all items are collected (flag/counter + flashing screen or visual change, looping until reset)"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Write a batari Basic Atari 2600 game: first a title screen that says SHOOTER (rough letters are fine), then the game: you move a ship along the bottom of the screen with the joystick and press fire to shoot a missile upward at descending alien sprites. Shooting an alien plays a sound effect and adds 50 to the score. Aliens respawn at the top and get faster as the score grows. It is game over when an alien reaches the bottom; the game restarts when the reset switch is pressed. Compile with 2600bas, fixing errors until it builds cleanly. Save the final game as shooter.bas (plus its shooter.bas.bin).",
+      "expected_output": "shooter.bas that compiles to a valid ROM, with title screen, ship movement, firing missiles, hit detection with sound and +50 score, accelerating aliens, game over and reset-switch restart",
+      "files": [],
+      "expectations": [
+        "shooter.bas exists in the outputs directory",
+        "The submitted shooter.bas compiles cleanly: 2600bas prints 'Complete. (0)' and produces a ROM",
+        "A .bas.bin ROM is produced whose size is a power of 2 (at least 4096 bytes)",
+        "A title-screen state runs before gameplay (screen/state flag with its own drawscreen loop)",
+        "Pressing fire launches a missile from the ship (missile0 position derived from player0, missile moves upward)",
+        "Alien hits detected via collision(missile0,player1) checked after drawscreen",
+        "A sound effect plays on shoot or hit (AUDV0/AUDC0/AUDF0 are set)",
+        "Score increases by 50 when an alien is hit",
+        "Aliens descend over time and their speed increases as the score grows",
+        "Game over triggers when an alien reaches the bottom, and the game restarts on the reset switch (switchreset)"
+      ]
+    }
+  ]
+}
