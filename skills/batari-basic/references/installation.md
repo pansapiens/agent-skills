@@ -78,6 +78,8 @@ batari-Basic/2600bas game.bas -O     # peephole optimizer (more ROM space)
 ## Running the ROM
 
 The `.bin` runs in any Atari 2600 emulator (Stella: `stella game.bas.bin`)
-or on real hardware via flash cart (Harmony). For headless validation, the
-compile step alone (exit 0 + valid ROM size) is usually sufficient; the
-ROM's boot bytes give a quick sanity check.
+or on real hardware via flash cart (Harmony). For headless validation,
+compile success plus a gopher2600 HEADLESS screenshot is the strongest
+check — see `running-in-an-emulator.md` for verified recipes (gopher2600,
+Stella Xvfb, javatari.js, ALE). The ROM's boot bytes give a quick sanity
+check.

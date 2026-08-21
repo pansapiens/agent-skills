@@ -353,3 +353,14 @@ Brief — full details in `kernels-and-memory.md`:
 - Setting `playercolors` without `player1colors` — invalid; they must be used together.
 - Expecting player2-player5 in the multisprite kernel to be independent objects for collision() — they are virtual reuses of player1.
 - Animating by re-issuing `player0:` blocks every frame when pointer-swapping (player0pointerlo/player0pointerhi) would be smaller and faster — and forgetting that `player0:` resets player0height.
+
+## Sprite tools (online)
+
+- **RT bB Sprite Editor** — Windows sprite editor for bB: one-click 360°
+  rotations, double view for wide sprites, rotoscoping, PNG projects:
+  https://www.randomterrain.com/2600bbsprite.html
+- **Atari 2600 Graphics Viewer** — converts sprites from classic game
+  ROMs into bB sprite data (find reference art fast):
+  https://www.randomterrain.com/2600graphics.html
+- An agent usually doesn't need these: sprite data is just binary rows
+  (see above) — write the `%01010101` pattern directly and compile.

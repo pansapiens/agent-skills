@@ -43,6 +43,7 @@ they are known-good syntax.
 - **Mazes**: `z_bb_ex_maze_32x23.bas`, `z_bb_ex_maze_32x12.bas`
 - **Score**: `mini_ex_score_123456.bas`, `z_bb_mini_ex_score_individual_digits.bas`, `mini_ex_score_digit_check.bas`
 - **Sound**: `mini_ex_sound_simple.bas`, `mini_ex_sound_5_sounds.bas`, `ex_sound_using_data_*.bas`, `z_bb_ex_sound_with_background.bas`
+- **Sound effects library browser** (all 117 RevEng/Karl G effects, playable): `ex_sfx_library_browser.bas`
 - **Lives/health bars**: `ex_pfscore_lives_health_selector.bas`, `tinkernut_world_deluxe_lives_bar.bas`, `tinkernut_world_deluxe_health_bar.bas`
 - **Paddles**: `ex_readpaddle.bas`, `ex_readpaddle_with_pf_collision.bas`, `mini_ex_two_paddles.bas`
 - **Bankswitching**: `ex_princess_rescue` (see above), `z_bb_ex_8x8_world_bankswitched.bas`, `z_bb_ex_16x16_world_bankswitched.bas`

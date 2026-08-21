@@ -18,7 +18,12 @@ compile.
 1. **Read the routing table** below and load the reference files your task
    needs (they are comprehensive — syntax, valid values, and examples).
 2. **Write the .bas file** starting from the skeleton in this file or from
-   the closest example in `examples/` (see `examples/README.md`).
+   the closest example in `examples/` (see `examples/README.md`). Give it
+   a snake_case stem matching a supported ALE game from the start —
+   default `adventure.bas` (genre fits: `space_invaders.bas`,
+   `breakout.bas`, `pong.bas`) — so the compiled ROM stays ALE-testable
+   with one copy: `cp adventure.bas.bin adventure.bin` (details in
+   `references/running-in-an-emulator.md`).
 3. **Compile often, in small increments.** After each feature is added:
    `batari-Basic/2600bas game.bas` (any cwd). Success prints
    `Complete. (0)` and `N bytes of ROM space left` and produces
@@ -163,22 +168,46 @@ Read only what the task needs (each file has a contents list at top):
 | collision(), joystick, switches, paddles | `references/collision-and-input.md` |
 | Score, lives bars, health bars, BCD | `references/score-and-lives.md` |
 | Sound effects and music | `references/sound.md` |
+| Ready-made sound effects (117, indexed, with data) | `references/sound-effects-library.md` |
 | Kernels, kernel_options, romsize, bankswitching, superchip | `references/kernels-and-memory.md` |
 | Compile errors, blank screen, timing | `references/troubleshooting.md` |
-| Run/test the ROM (javatari.js, Stella) | `references/running-in-an-emulator.md` |
+| Inline `asm` blocks, TIA registers, memory map, cycle budgets, assembly tutorials | `references/inline-asm-and-machine.md` |
+| Run/test the ROM headless or for a human (gopher2600, Stella, javatari.js, ALE) | `references/running-in-an-emulator.md` |
 | Complete programs to copy from | `examples/README.md` + `examples/*.bas` |
 
 ## Running the ROM
 
 The `.bin` runs in any Atari 2600 emulator or on real hardware via flash
-cart (Harmony).
+cart (Harmony). Full walkthrough with verified commands:
+`references/running-in-an-emulator.md`.
 
-- **Stella** (if installed): `stella game.bas.bin` — arrows move, Left Ctrl
-  or Space fires, F2 = console RESET switch, F1 = SELECT, F12 = screenshot.
-- **javatari.js** (browser, zero install): see the concise walkthrough in
-  `references/running-in-an-emulator.md` — drag & drop the .bin, or serve
+**Run GUI-capable emulator commands under `timeout`** (e.g.
+`timeout 30 stella game.bas.bin`). Stella and gopher2600 open a blocking
+SDL window in interactive mode; a mis-flag or a real display will hang the
+shell until killed. `timeout` guarantees a hung GUI can't stall the agent.
+
+- **gopher2600** (agent testing, no display): single pre-compiled Linux
+  binary from GitHub releases; `HEADLESS` mode runs scripted input and
+  saves PNG screenshots with zero X server — the best way to verify a
+  game actually renders and responds.
+- **Stella** (reference emulator): `stella game.bas.bin` — arrows move,
+  Left Ctrl or Space fires, F2 = console RESET, F1 = SELECT, F12 =
+  screenshot. `stella -rominfo rom.bin` works fully headless. Full option
+  list: `stella -help`. _Footnote: single-dash flags only — `--help` is
+  not a valid flag and opens the interactive GUI instead of printing help;
+  `pkill stella` if a window pops up._
+- **ALE** (`ale-py`): headless RL interface with RGB frame observations
+  if you need an agent policy to play/score the game. Name the .bas
+  after a supported game from the beginning (default `adventure.bas`;
+  bB emits `adventure.bas.bin`, copy to `adventure.bin` for ALE).
+- **javatari.js** (browser, zero install): drag & drop the .bin, or serve
   the standalone release and open `http://localhost:PORT/?ROM=game.bas.bin`
-  for an auto-loading playable link.
+  for an auto-loading playable link to hand a human. It can also be
+  embedded in your own HTML page (`<div id="javatari-screen">` + one
+  script tag) — `?ROM=` paths resolve relative to **the page's URL**
+  (not the script's), must be served over http (not `file://`), and a
+  wrong path fails silently on the loading screen. Details in
+  `references/running-in-an-emulator.md`.
 
 ## Advice for games that actually work
 

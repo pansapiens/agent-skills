@@ -344,3 +344,9 @@ After compiling you'll see: `Compilation Completed: ____ Bytes of ROM Space Left
 - `rem` with no space after it; colons with no surrounding spaces; keywords run together (`forl=1to10`).
 - Comparing/doing math on `score` as if it were a normal variable (it's BCD — see the score reference).
 - Expecting the "bytes of ROM space left" number to move linearly as you add code (page alignment makes it jump).
+
+## Online tools (humans)
+
+- **bB Tools and Toys** — hex/decimal/binary conversions, bit twiddling,
+  calculator, REM spellchecker: https://www.randomterrain.com/atari-2600-memories-batari-basic-tools-toys.html
+- Agents don't need it — do number conversion in Python or awk instead.

@@ -328,8 +328,10 @@ See `ex_sound_using_data_no_bank.bas` for a complete two-channel program (joysti
 
 - **VbB Music and Sound Editor** — built into Visual batari Basic; create music/sound effects faster (the example sound data was made with its keyboard).
 - **Tone Toy 2008** — a bB-made 2600 program for experimenting with loops of sound values.
-- **batari Basic Sound Effects Library** (Karl G.) — a bB version of RevEng's sound player.
-- **The Atari 2600 Music and Sound Page** and **do re bB** — expanded 2600 music/sound info and the basics of bB music.
+- **batari Basic Sound Effects Library** (117 ready-made effects, RevEng's collection ported to bB by Karl G) — **shipped with this skill**: see `references/sound-effects-library.md` for the index + usage and `examples/ex_sfx_library_browser.bas` for all the data in a compilable, playable browser program. Online: https://www.randomterrain.com/rt-bb-sound-effects.html
+- **The bB Music and Sound Toy** — play real 2600 sounds online and generate bB data: https://www.randomterrain.com/atari-2600-memories-batari-basic-music-toy.html
+- **Tone Toy 2008** — a bB-made 2600 program for experimenting with loops of sound values: https://www.randomterrain.com/atari-2600-memories-program-tone-toy-2008.html
+- **The Atari 2600 Music and Sound Page** (incl. Eckhard Stolberg's frequency/waveform guide) and **do re bB** — expanded 2600 music/sound info and the basics of bB music: https://www.randomterrain.com/atari-2600-memories-music-and-sound.html
 
 ## Common mistakes
 

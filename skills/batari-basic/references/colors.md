@@ -341,3 +341,11 @@ As the pulsation docs warn, don't reroll colors every single frame at full speed
 - **Using `set tv pal` for a PAL version.** It changes timing to 50 fps, not colors — use PAL-60 (NTSC timing + PAL palette values via swappable constants) instead.
 - **Assuming your emulator colors match a TV.** 2600 colors are darker on televisions; dark grays like `$02`/`$04` can look black — bump luminances up if needed.
 - **Cycling background/playfield colors fast.** Per the source, this can cause eyestrain or possibly trigger seizures — pulse luminance of one hue at a gentle pace instead.
+
+## Color tools (online)
+
+- **TIA Color Charts and Tools** — NTSC/PAL conversion tool and color
+  compatibility helpers (finds hues that work together):
+  https://www.randomterrain.com/atari-2600-memories-tia-color-charts.html
+- The charts above are the source this file distills; the `$XY`
+  hue/luminance table here covers everyday needs.

@@ -497,3 +497,12 @@ Because colors update at half rate, either set DF4FRACINC (or DF6FRACINC) to twi
 - Treating the hidden row 11 as useless — it's your scroll-in buffer, and (unscrolled) var44-var47 double as free variables.
 - Assuming DPC+ pfscroll matches standard-kernel pfscroll — no left/right, down is `pfscroll 255`, and queues 4/6 scroll colors.
 - Writing to DFxFRACINC registers outside the main loop — they must be set before/with drawscreen.
+
+## Playfield tools (online)
+
+- **bB Playfield Editor** — draw standard-kernel and DPC+ playfields in
+  the browser, copy out bB code:
+  https://www.randomterrain.com/bb-playfield-editor.html
+- Agents can usually skip it — `pfpixel`/`pfhline`/`pfvline` plus the
+  playfield: data block syntax in this file are enough to generate any
+  layout programmatically.

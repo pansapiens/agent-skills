@@ -243,6 +243,22 @@ Bank layout: bank 1 starts at the beginning of your code (never declare it). Beg
    gosub __Move_Monster bank2
 ```
 
+**Verified failure modes if you get this wrong (bB 1.9, tested):**
+
+- A cross-bank `goto label` **without** the `bankN` suffix silently
+  compiles to a plain `jmp` into the wrong bank's mirror address — the
+  program runs random code instead of erroring. Same for `if ... then
+  goto cross_bank_label` (the suffix can't be used inside if-then;
+  route through a local label with a bare `goto ... bankN`).
+- **`on x goto ...` never supports bankswitching** (the compiler says
+  so itself) — the jumptable raw-addresses into other banks. Use it
+  only for same-bank targets; dispatch across banks with an if-chain
+  of local labels + bare `goto ... bankN`.
+- `include` statements in bankswitched ROMs only work at the **very
+  top of the file, before `set romsize`** — anywhere else the file is
+  silently not inlined and its routines (e.g. `div8` from
+  `div_mul.asm`) fail to resolve at assembly.
+
 **Data placement rules (important!):**
 
 - **A bank cannot access data in another bank** — data tables are only reachable from the bank they live in. Keep each `data` statement in the same bank as the code that reads it.
