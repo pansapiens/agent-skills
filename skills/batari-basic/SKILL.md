@@ -25,14 +25,22 @@ compile.
    with one copy: `cp adventure.bas.bin adventure.bin` (details in
    `references/running-in-an-emulator.md`).
 3. **Compile often, in small increments.** After each feature is added:
-   `batari-Basic/2600bas game.bas` (any cwd). Success prints
-   `Complete. (0)` and `N bytes of ROM space left` and produces
-   `game.bas.bin`. When it fails, fix before adding more — error meanings
-   are in `references/troubleshooting.md`.
+   `scripts/bb-build.sh game.bas` (finds the compiler, keeps its intermediate
+   files out of your project, and exits non-zero if no valid ROM appeared), or
+   `batari-Basic/2600bas game.bas` directly. Success prints `Complete. (0)`
+   and `N bytes of ROM space left` and produces `game.bas.bin`. When it fails,
+   fix before adding more — error meanings are in
+   `references/troubleshooting.md`.
 4. **Never trust untested code.** Every code block you write should have
    been compiled before you hand it over. If the compiler is not installed,
    follow `references/installation.md` (5 minutes, native build, no
    wasmtime needed).
+5. **Compiling is not evidence that the game works.** The bugs that cost the
+   most time all compile cleanly and then show a black or frozen screen —
+   see the silent-failure list in `references/troubleshooting.md`. Run the
+   ROM (`scripts/bb-headless.sh`), then **look at the screenshots**; the
+   compiler cannot tell you the sprite is invisible or the grid is
+   misaligned.
 
 If no batari-Basic directory exists nearby, install per
 `references/installation.md` and use `/path/to/batari-Basic/2600bas`.
@@ -122,7 +130,10 @@ labels. Labels have **no colon**. `rem` starts a comment.
 - All ifs are single-line: `if a = 5 then label` or
   `if a = 5 then b = b + 1`. There is no `endif`.
 - `then` may be followed by a statement, goto, gosub, or label only.
-- `on x goto label1 label2 ...` is 0-based (x = 0 → first label).
+- `on x goto label1 label2 ...` is 0-based (x = 0 → first label) **and
+  unchecked** — an x past the last label jumps somewhere undefined and kills
+  the program (black screen, no error). For a 1-based type/state variable,
+  pad index 0 with a do-nothing label.
 - One-line `:` separators exist but keep them out of if-then lines except
   carefully (see flow-control.md).
 - `set smartbranching on` always — prevents "branch out of range" errors.
@@ -170,10 +181,11 @@ Read only what the task needs (each file has a contents list at top):
 | Sound effects and music | `references/sound.md` |
 | Ready-made sound effects (117, indexed, with data) | `references/sound-effects-library.md` |
 | Kernels, kernel_options, romsize, bankswitching, superchip | `references/kernels-and-memory.md` |
-| Compile errors, blank screen, timing | `references/troubleshooting.md` |
+| Compile errors, blank screen, timing, silent runtime failures | `references/troubleshooting.md` |
 | Inline `asm` blocks, TIA registers, memory map, cycle budgets, assembly tutorials | `references/inline-asm-and-machine.md` |
 | Run/test the ROM headless or for a human (gopher2600, Stella, javatari.js, ALE) | `references/running-in-an-emulator.md` |
 | Complete programs to copy from | `examples/README.md` + `examples/*.bas` |
+| Build & headless-test helper scripts | `scripts/README.md` |
 
 ## Running the ROM
 

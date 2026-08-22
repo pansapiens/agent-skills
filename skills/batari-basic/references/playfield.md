@@ -108,6 +108,24 @@ pfpixel xpos ypos function
 
 **Warning:** there is **no bounds checking**. If you exceed the limits, strange things may happen, including crashing your program.
 
+**Arguments must be plain variables or constants — not expressions.**
+Variables work (`pfpixel _x _y on` is fine), but `pfpixel _x+2 _y on` mis-parses
+and emits broken assembly, which surfaces later as a bare `Syntax Error ''`
+from DASM pointing at a line of generated code. Precompute into a variable:
+
+```bb
+   _x1 = _x + 1
+   _x2 = _x + 2
+   pfpixel _x  _y on
+   pfpixel _x1 _y on
+   pfpixel _x2 _y on
+```
+
+**Screen coordinates:** the 32-column playfield spans screen x **16 to 144**,
+4 screen pixels per column — so playfield column `c` starts at screen
+`x = 16 + 4*c`. That is the conversion you need to line a sprite up with a
+playfield cell (a sprite at `player0x = 16 + 4*c` sits on column `c`).
+
 ## pfhline
 
 Draws a horizontal (left and right) line with playfield blocks. Uses **250 to 1500 cycles** depending on length (approx 210 + 42*length).

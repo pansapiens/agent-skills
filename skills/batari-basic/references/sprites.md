@@ -42,6 +42,7 @@ end
 - Any number of rows (up to 256 total height). The block above (8 rows) is the classic 8x8 sprite.
 - The block ends with `end` on its own line, and the rows must be indented (3 spaces shown here).
 - Sprite definitions can be placed **outside the main loop** — the standard kernel keeps displaying them until you change them. (Exception: some multisprite kernel versions need player0: redefined inside the loop.)
+- **But the block must actually be executed.** A `player0:` block is a statement that sets the sprite's pointer when control flows through it, not a declaration the compiler hoists. A block parked at the very end of the file — after the main loop and every subroutine — never runs, and the sprite shows whatever the pointer happened to hold (frequently another sprite's data, or nothing at all). Put graphics blocks in the setup code above the main loop, or inside a subroutine you call.
 - Redefining `player0:` … `end` inside the game loop also works (that's how `examples/ex_jumping_sprite.bas` animates), but every inline block costs ROM bytes and **resets player0height** (see below).
 
 Wider or multiple sprites: you cannot draw wider data — the data is always 8 wide. Use NUSIZx (double/quadruple width or 2-3 copies) or stack objects. See [NUSIZ](#size-and-copies-nusiz0--nusiz1).

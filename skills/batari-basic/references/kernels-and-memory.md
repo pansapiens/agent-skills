@@ -133,6 +133,31 @@ Each virtual sprite has its own x, y, height, color, and NUSIZ variables. The co
 
 - There are no REFPx variables for virtual sprites: set the reflection bit with **bit 3 of `_NUSIZ1` or `NUSIZ2`-`NUSIZ5`** (that bit is unused by the hardware register). Example: `NUSIZ3{3} = 1`.
 
+### Two multisprite traps worth knowing before you design the screen
+
+**`x = 200` does not hide a virtual sprite — it wraps back onto the screen.**
+The standard-kernel trick of parking an object off screen leaves slivers down
+the left and right edges here. To hide one, also paint it in the background
+colour:
+
+```bb
+   player2x = 200 : COLUP2 = $00    ; and keep COLUBK = $00
+```
+
+Because that makes the parking trick depend on the background, it is simplest
+to keep `COLUBK` the same value on every screen of the game and vary
+`COLUPF` instead.
+
+**Flicker is positional, so vertical lanes are a design decision, not a
+tweak.** The kernel flickers virtual sprites that share a vertical region, so
+any two that overlap each get drawn on roughly half the frames — from a
+single-frame screenshot one of them simply looks *missing*. Before writing
+the movement code, give each virtual sprite its own band of y values with a
+few units of clearance, and treat the number of non-overlapping bands as the
+budget for how many objects can be on screen at once. A game that needs its
+objects to roam the whole screen freely wants the standard kernel (or DPC+),
+not this one.
+
 ## The DPC+ kernel
 
 ```bB

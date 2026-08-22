@@ -2,7 +2,7 @@
 
 Purpose: a troubleshooting reference — how the bB compilation pipeline works, how to read error output, a dictionary of common error messages with fixes, runtime problems (blank screen, wrong colors, jitter), and the basics of inline assembly (`asm`...`end`, `include`, `includesfile`, `inline`). For LLMs that know normal BASIC but little about bB or the Atari 2600.
 
-Contents: [Pipeline](#the-compilation-pipeline-which-stage-each-error-comes-from) · [Compile output](#reading-compile-output-and-generated-files) · [Searching the .asm file](#searching-the-generated-asm-file) · [Error dictionary](#error-dictionary) · [Verbose-error quirks](#verbose-error-quirks-message--cause--fix) · [Unresolved symbol names](#specific-unresolved-symbol-names) · [Blank screen](#blank-screen) · [Score color bleed](#players-use-the-score-color) · [Timing problems](#timing-problems-jitter-shaking-rolling) · [Old versions](#games-for-earlier-versions-of-bb--upgrading) · [Emulator arrow keys](#arrow-keys-not-working-in-an-emulator) · [asm blocks](#asm--end--inline-assembly) · [include/includesfile/inline](#include--includesfile--inline--adding-asm-modules) · [Hacking .asm files](#hacking-bbs-asm-files) · [Debugging workflow](#debugging-workflow) · [Common mistakes](#common-mistakes)
+Contents: [Pipeline](#the-compilation-pipeline-which-stage-each-error-comes-from) · [Compile output](#reading-compile-output-and-generated-files) · [Searching the .asm file](#searching-the-generated-asm-file) · [Error dictionary](#error-dictionary) · [Verbose-error quirks](#verbose-error-quirks-message--cause--fix) · [Unresolved symbol names](#specific-unresolved-symbol-names) · [Blank screen](#blank-screen) · [Silent runtime failures](#silent-runtime-failures-black-or-frozen-screen-no-compiler-error) · [Score color bleed](#players-use-the-score-color) · [Timing problems](#timing-problems-jitter-shaking-rolling) · [Old versions](#games-for-earlier-versions-of-bb--upgrading) · [Emulator arrow keys](#arrow-keys-not-working-in-an-emulator) · [asm blocks](#asm--end--inline-assembly) · [include/includesfile/inline](#include--includesfile--inline--adding-asm-modules) · [Hacking .asm files](#hacking-bbs-asm-files) · [Debugging workflow](#debugging-workflow) · [Common mistakes](#common-mistakes)
 
 ## The compilation pipeline (which stage each error comes from)
 
@@ -114,6 +114,72 @@ Symptom: the game compiles to a `.bin`, but the emulator shows a black screen.
    COLUPF = $1C : rem color of playfield and ball
    COLUBK = $00 : rem background color
 ```
+
+## Silent runtime failures (black or frozen screen, no compiler error)
+
+These all compile cleanly to a ROM of the right size and then misbehave at
+run time. They are the expensive bugs, because the compiler is happy and the
+symptom (a black frame, or a frame that never changes) looks the same for
+every one of them. `scripts/frame-check.py` exists to tell the two symptoms
+apart from a batch of screenshots without opening each one.
+
+**Black screen: `on x goto` ran off the end of its label list.** `on x goto`
+is 0-based *and unchecked* — if `x` is greater than the number of labels, the
+jump goes somewhere undefined and the program dies. This bites whenever the
+variable is a 1-based "type" or "state" number:
+
+```bb
+   rem  _type is 1-4, but index 4 does not exist in a 4-label list
+   on _type goto __A __B __C __D          ; WRONG - dies when _type = 4
+
+   rem  either subtract first, or pad index 0 with a do-nothing label
+   on _type goto __None __A __B __C __D   ; __None just does `return`
+```
+
+Minimal reproduction: a program whose only oddity is `_i = 3` followed by
+`on _i goto __A __B __C` renders a 100%-black frame.
+
+**Black screen or wrong sprite: a `player0:` block that never executes.**
+A graphics block is not a declaration — it is a *statement* that sets the
+sprite's pointer when control flows through it. A block parked at the end of
+the file, after the main loop and all the subroutines, never runs, so the
+sprite keeps whatever pointer it had (often another sprite's data, or
+nothing). Put graphics blocks in the setup code that runs before the main
+loop, or inside a subroutine you actually call.
+
+**Frozen screen: a subroutine clobbered the loop counter.** There are no
+local variables — all 26 are global, and so are `temp1`-`temp6`. A counting
+loop that calls a helper using the same scratch variable never terminates:
+
+```bb
+   _tmp = 0
+__FadeLoop
+   _tmp = _tmp + 1
+   gosub __PlaceSprites     ; ...which also uses _tmp for its own arithmetic
+   drawscreen
+   if _tmp < 60 then goto __FadeLoop    ; _tmp never gets past __PlaceSprites
+```
+
+Give animation and wait loops a counter variable that no subroutine touches.
+
+**Wrong behaviour, no crash: an unbalanced `return`.** A shared tail block
+reached by `goto` from two places, where only one of them arrived through a
+`gosub`, will `return` to whatever happens to be on the stack:
+
+```bb
+   rem  path A:  gosub __Judge   -> goto __EndTurn -> return   (balanced)
+   rem  path B:  goto __CompTurn -> goto __EndTurn -> return   (NOT balanced)
+```
+
+Symptom in a real game: one player's turn worked and the other silently did
+nothing. Make every path into a shared block use the same convention — either
+all `gosub` into it, or end it with a `goto` back to the main loop rather
+than a `return`.
+
+**Scrambled playfield: writing `CTRLPF` by hand.** Setting `CTRLPF` to get a
+wider ball (`CTRLPF = $20`) displaced the whole playfield horizontally in the
+standard kernel — bB relies on that register. Leave it alone unless a
+reference tells you otherwise.
 
 ## Players use the score color
 

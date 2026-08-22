@@ -52,6 +52,41 @@
         "Aliens descend over time and their speed increases as the score grows",
         "Game over triggers when an alien reaches the bottom, and the game restarts on the reset switch (switchreset)"
       ]
+    },
+    {
+      "id": 3,
+      "prompt": "Write a batari Basic Atari 2600 game called bugs.bas: a ship at the bottom that the joystick moves left and right, and four kinds of enemy that drift down the screen. Keep the enemy kind in a variable numbered 1 to 4, give each kind its own sprite shape and its own colour, and pick the shape with an on..goto. Firing destroys an enemy and scores; an enemy reaching the bottom costs a life; three lives then game over. Compile it, then actually run the ROM headless under gopher2600 and save at least three screenshots taken at different points (title, early play, later play). Confirm from the screenshots that the game is really drawing and really changing - a screenshot that is entirely one colour, or that is pixel-identical to the previous one, means the program crashed or hung and you must fix it before finishing. Save bugs.bas, bugs.bas.bin and the screenshots.",
+      "expected_output": "bugs.bas compiling to a valid ROM, plus screenshots from a headless run that are neither blank nor identical to each other, demonstrating the game boots, draws and responds",
+      "files": [],
+      "expectations": [
+        "bugs.bas exists in the outputs directory",
+        "The submitted bugs.bas compiles cleanly: 2600bas prints 'Complete. (0)' and produces a ROM",
+        "A .bas.bin ROM is produced whose size is a power of 2 (at least 4096 bytes)",
+        "At least three screenshot .png files were produced from a headless emulator run",
+        "No screenshot is blank: in each one, the single most common pixel colour covers less than 99% of the frame",
+        "The screenshots are not all identical to one another (the game is not frozen)",
+        "An on..goto selects the enemy sprite by kind",
+        "The on..goto is safe for a 1-based variable: either index 0 is padded with a do-nothing label so a kind of 4 lands inside the label list, or the variable is decremented before the on..goto. A 1-to-4 variable indexing a bare four-label list is a defect",
+        "Every player0:/player1: graphics block is positioned where it will actually execute - in setup code before the main loop, or inside a subroutine that is called - and not stranded after the end of the main loop where control never reaches it",
+        "Any loop that counts a variable up to a limit while calling a subroutine does not use a counter that the subroutine overwrites (no infinite loop from a clobbered scratch variable)",
+        "COLUP0/COLUP1 are set inside the main loop rather than only once at startup"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Using the batari Basic multisprite kernel, write chase.bas: a player0 character the joystick moves freely, and four virtual sprites (player2 to player5) that are enemies moving horizontally across the screen. Each enemy should be visible at all times while it is on screen. There must also be a way to take an enemy out of play so that it is completely invisible. Compile it, run it headless and take screenshots to confirm all four enemies are actually on screen together, and that a removed enemy leaves no trace at the screen edges.",
+      "expected_output": "chase.bas compiling to a valid ROM, with four virtual sprites that are all simultaneously visible in a screenshot, and a removal mechanism that leaves no sliver at the screen edges",
+      "files": [],
+      "expectations": [
+        "chase.bas exists in the outputs directory",
+        "The submitted chase.bas compiles cleanly and produces a ROM whose size is a power of 2 (at least 4096 bytes)",
+        "'set kernel multisprite' is used",
+        "Each of player2-player5 is given its own separated band of y values, rather than all sharing overlapping vertical positions - overlapping virtual sprites flicker and appear missing in a single frame",
+        "Taking an enemy out of play does more than set its x to 200: because x=200 wraps back onto the screen in the multisprite kernel, the sprite is also painted in the background colour (or otherwise genuinely hidden)",
+        "A screenshot from a headless run shows four distinct enemy sprites on screen at once",
+        "No screenshot is blank: the most common pixel colour covers less than 99% of the frame",
+        "Enemy colours use the multisprite per-sprite colour registers (_COLUP1, COLUP2-COLUP5) rather than expecting COLUP1 to work for virtual sprites"
+      ]
     }
   ]
 }
