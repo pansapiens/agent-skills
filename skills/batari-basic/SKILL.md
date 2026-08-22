@@ -185,7 +185,7 @@ Read only what the task needs (each file has a contents list at top):
 | Inline `asm` blocks, TIA registers, memory map, cycle budgets, assembly tutorials | `references/inline-asm-and-machine.md` |
 | Run/test the ROM headless or for a human (gopher2600, Stella, javatari.js, ALE) | `references/running-in-an-emulator.md` |
 | Complete programs to copy from | `examples/README.md` + `examples/*.bas` |
-| Build & headless-test helper scripts | `scripts/README.md` |
+| Build, headless-test & browser-page helper scripts | `scripts/README.md` |
 
 ## Running the ROM
 
@@ -216,9 +216,13 @@ shell until killed. `timeout` guarantees a hung GUI can't stall the agent.
   the standalone release and open `http://localhost:PORT/?ROM=game.bas.bin`
   for an auto-loading playable link to hand a human. It can also be
   embedded in your own HTML page (`<div id="javatari-screen">` + one
-  script tag) — `?ROM=` paths resolve relative to **the page's URL**
-  (not the script's), must be served over http (not `file://`), and a
-  wrong path fails silently on the loading screen. Details in
+  script tag). Two traps: ROM paths resolve relative to **the page's URL**
+  (not the script's), and a wrong one fails silently on the loading
+  screen; and the page **must be served over http** — over `file://` the
+  browser blocks the ROM fetch and javatari reports the misleading
+  `Could not load file: game.bas.bin / Error: 0`, which is an XHR status
+  of zero, not a path problem. `scripts/bb-serve.sh` and
+  `scripts/bb-page-check.py` check both. Details in
   `references/running-in-an-emulator.md`.
 
 ## Advice for games that actually work

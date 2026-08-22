@@ -12,6 +12,7 @@ Quick pick by goal:
 | Agent needs RL interface / observation arrays | ALE (below) |
 | Inspect a ROM (mapper, size, controllers) headless | `stella -rominfo rom.bin` |
 | Human plays your game, zero install | javatari.js (browser link, below) |
+| Browser page shows `Error: 0` or an endless loading screen | javatari.js embedding traps (below) |
 | Human plays, native | Stella or gopher2600 GUI on a desktop |
 
 > **Safety: wrap any GUI-capable emulator command in `timeout`.**
@@ -349,8 +350,67 @@ Minimum requirements (defaults, no config needed):
 - The div **id must be `javatari-screen`** (`SCREEN_ELEMENT_ID` default).
 - `ALLOW_URL_PARAMETERS` is true by default, so `?ROM=` works on your own
   pages exactly as on javatari.org.
-- Serve over `http://` (or https). Opening the page via `file://` **fails
-  silently** — browsers block the ROM fetch (CORS on XHR).
+- Serve over `http://` (or https) — see the `Error: 0` trap below.
+
+Instead of `?ROM=`, a page can name its ROM in script. Set the config
+**after** the javatari.js script tag; javatari defers its own init, so this
+is read in time:
+
+```html
+<div id="javatari-screen"></div>
+<script src="../javatari.js"></script>
+<script>
+  Javatari.CARTRIDGE_URL = "game.bas.bin";   // relative to THIS page
+  Javatari.AUTO_START = true;
+</script>
+```
+
+### `Error: 0` means file://, not a bad path
+
+```
+Could not load file: game.bas.bin
+Error: 0
+```
+
+That dialog is the single most common javatari failure, and it is
+**misleading**: it names the ROM, so it reads like a path bug. It is not.
+Javatari fetches the cartridge with XHR, and browsers refuse XHR on
+`file://` origins:
+
+```
+Access to XMLHttpRequest at 'file:///.../game.bas.bin' from origin 'null'
+has been blocked by CORS policy: Cross origin requests are only supported
+for protocol schemes: chrome, chrome-extension, data, http, https, ...
+```
+
+`Error: 0` is an XHR status of zero — the request never left the browser.
+The number is a status code, not a path error. Double-clicking the HTML
+file, or `xdg-open`ing it, always produces this however correct the path is.
+Fix by serving the directory:
+
+```bash
+scripts/bb-serve.sh . 8600           # then http://localhost:8600/page.html
+scripts/bb-page-check.py http://localhost:8600/page.html
+```
+
+Since a human will eventually open the page the wrong way, make the page
+say so itself rather than letting the emulator report a bare error code:
+
+```html
+<script>
+  if (location.protocol === "file:") {
+    document.getElementById("javatari-screen").insertAdjacentHTML("beforebegin",
+      "<p>Open this over http:// — the browser blocks ROM loading on file:// URLs.</p>");
+  } else {
+    Javatari.CARTRIDGE_URL = "game.bas.bin";
+    Javatari.AUTO_START = true;
+  }
+</script>
+```
+
+Leaving `CARTRIDGE_URL` unset in the `file:` branch matters: javatari then
+shows its normal "Select Cartridge / Open ROM File..." screen, so the reader
+still has a way to play the game by hand.
 
 **The `?ROM=` path is relative to YOUR page, not to javatari.js.** This is
 the classic embedding mistake. Verified layout — page in `pages/`, ROM in
@@ -374,6 +434,11 @@ server-root/
 Tested end-to-end with Chromium: page-relative `../roms/...` loads and
 runs (verified by pixel-sampling the canvas); the missing-`../` form
 stays white/loading with a silent 404.
+
+`scripts/bb-page-check.py <page-url>` checks both of these for you — it
+resolves the page's ROM reference the way the browser will and fetches it,
+so a 404 or a `file://` URL is reported in one line instead of being found
+by a human staring at a loading screen.
 
 ### Default keys (P1)
 

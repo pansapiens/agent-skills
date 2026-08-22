@@ -1,8 +1,8 @@
 # scripts/
 
-Four small helpers for the compile → run → look loop. They wrap only the
-parts that are the same for every bB game; everything game-specific stays in
-your hands.
+Six small helpers for the compile → run → look loop, plus handing the game
+to a human in a browser. They wrap only the parts that are the same for
+every bB game; everything game-specific stays in your hands.
 
 | Script | Does |
 |---|---|
@@ -10,6 +10,8 @@ your hands.
 | `get-gopher2600.sh` | Ensure the headless emulator exists; prints its path. |
 | `bb-headless.sh <rom> <steps.txt> [secs]` | Run the ROM under gopher2600 HEADLESS with a command script. |
 | `frame-check.py <shot.png>...` | Flag blank and frozen frames in a batch of screenshots. |
+| `bb-serve.sh [dir] [port]` | Serve a directory so javatari.js can fetch the ROM at all. |
+| `bb-page-check.py <page-url>...` | Verify a javatari page's ROM reference actually resolves. |
 
 Typical loop:
 
@@ -30,6 +32,13 @@ scripts/frame-check.py /tmp/shots/*.png
 ```
 
 then **open the screenshots and look at them**.
+
+Handing the game to a human in a browser:
+
+```bash
+scripts/bb-serve.sh . 8600 &
+scripts/bb-page-check.py http://localhost:8600/mygame/index.html
+```
 
 ## What these scripts deliberately do not do
 
@@ -67,3 +76,13 @@ looking at the frame is both faster and more informative.
   command or wrote fewer screenshots than the steps file asked for (usually
   means the run needs more seconds).
 - `frame-check.py` needs Pillow.
+- `bb-page-check.py` is standard-library only. It exists because the
+  browser's own report of the commonest embedding failure is actively
+  misleading: a page opened over `file://` shows **"Could not load file:
+  game.bas.bin / Error: 0"**, which names the ROM and reads like a bad path,
+  but `Error: 0` is an XHR status of zero — the browser blocked the request
+  over CORS and the path was never at fault. The script separates that case
+  from a genuinely wrong relative path (which javatari reports as *nothing
+  at all*, just an endless loading screen) in one line. Both traps, and the
+  `file:`-guard to put in the page, are in
+  `references/running-in-an-emulator.md`.
