@@ -13,6 +13,7 @@ Quick pick by goal:
 | Inspect a ROM (mapper, size, controllers) headless | `stella -rominfo rom.bin` |
 | Human plays your game, zero install | javatari.js (browser link, below) |
 | Browser page shows `Error: 0` or an endless loading screen | javatari.js embedding traps (below) |
+| Browser game ignores the arrow keys / moves on A and Space | javatari paddle-mode guess (below) |
 | Human plays, native | Stella or gopher2600 GUI on a desktop |
 
 > **Safety: wrap any GUI-capable emulator command in `timeout`.**
@@ -440,15 +441,86 @@ resolves the page's ROM reference the way the browser will and fetches it,
 so a 404 or a `file://` URL is reported in one line instead of being found
 by a human staring at a loading screen.
 
-### Default keys (P1)
+### javatari guesses the controller from the ROM's FILENAME
+
+Symptom: the arrow keys do nothing, and the game is steered by **Space and
+A** instead — two keys that are not a left/right pair on any layout. What
+they actually are is the P1 and P2 *fire* buttons.
+
+Cause: `Javatari.PADDLES_MODE` defaults to `-1`, meaning "auto". For a ROM
+javatari does not recognise by hash — i.e. every ROM you compile — "auto"
+resolves by matching the **filename** against a built-in list of ~65 paddle
+game titles:
+
+```js
+if (!a.p && (a.p = 0, !e.match(l+"JOYSTICK(S)?"+m)))   // e = ROM name, uppercased
+    if (e.match(l+"PADDLE(S)?"+m)) a.p = 1;
+    else for (n = 0; n < j.length; n++) if (e.match(j[n])) { a.p = 1; break a }
+```
+
+A joystick remake named after a paddle original therefore boots in paddle
+mode. The two paddle buttons sit on the *same SWCHA bits* as joystick right
+and left:
+
+```js
+PADDLE1_BUTTON: case f.JOY0_LEFT:  return void(b ? k&=191 : k|=64)    // bit 6
+PADDLE0_BUTTON: case f.JOY0_RIGHT: return void(b ? k&=127 : k|=128)   // bit 7
+```
+
+so `if joy0left` fires when the *paddle 1 button* (key `A`) is pressed and
+`if joy0right` when the *paddle 0 button* (key `Space`) is. The arrow keys
+are mapped to paddle motion instead and the game never sees them.
+
+Patterns that trigger it include `BREAKOUT`, `WARLORDS`, `KABOOM`,
+`CIRCUS.*ATARI`, `NIGHT.*DRIVER`, `STREET.*RACER`, `BUGS` (unless followed
+by `BUNNY`), `CASINO`, `GUARDIAN`, `PICNIC`, `PIECE.*O.*CAKE`, and anything
+containing `PADDLE`. Note **`breakout.bas` is one of them** — see the ALE
+naming note in `SKILL.md`, which pulls the other way.
+
+**Fix — pin the mode on the page rather than relying on auto:**
+
+```js
+Javatari.CARTRIDGE_URL = "game.bas.bin";
+Javatari.PADDLES_MODE = 0;    // 0 = joysticks, 1 = paddles, -1 = guess (default)
+```
+
+Set it for *every* game, not just ones you think are affected — it costs one
+line and removes a silent dependency on your choice of filename. If your
+game really does read paddles, set `1` for the same reason. The alternative
+escape hatch is the `JOYSTICK` check on the first line above: a ROM named
+`game (Joystick).bin` is forced to joysticks. `scripts/bb-page-check.py`
+warns when a page's ROM name would trip the heuristic and the page has not
+pinned the mode.
+
+The user-facing toggle, if someone hits this on a page you did not write, is
+the emulator's own **Controllers: JOYSTICKS/PADDLES** item in the bar menu.
+
+### Default keys
 
 | Key | Action |
 |---|---|
-| Arrow keys | joystick up/down/left/right |
-| Space | fire |
+| Arrow keys | P1 joystick up/down/left/right |
+| Space | **P1 fire** |
+| T / G / F / H | P2 joystick up/down/left/right |
+| A | **P2 fire** |
 | F5 / F6 | load ROM from file / URL |
+| F1 | console POWER (Shift+F1 = fry) |
+| F2 | console B/W switch |
+| F11 | console **SELECT** |
+| F12 | console **RESET** |
+| F4 / F9 | left / right difficulty switch |
 | TAB | fast speed |
 | Alt+P / Alt+F | pause / advance one frame |
+
+The console switches are the ones to get right in your instructions, because
+by Atari convention RESET is what starts a bB game (`if switchreset then
+...`). **RESET is F12; F11 is SELECT** — verified from the key map, not from
+javatari's menu labels. Telling a player "press F11 to start" sends them to
+SELECT and the game appears not to respond.
+
+Worth memorising the two fire keys: if a game responds to **Space and A but
+not the arrows**, that is not a broken control scheme, it is paddle mode —
+see the filename-heuristic section above.
 
 Frame advance (`Alt+F`) is handy for debugging collision or animation
 logic one frame at a time.

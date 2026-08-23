@@ -1,6 +1,6 @@
 ---
 name: batari-basic
-description: Write, compile, and debug batari Basic (bB) programs and games for the Atari 2600. Use this skill whenever the task involves batari Basic, bB, .bas files compiled to 2600 ROMs, Atari 2600 game programming in BASIC, sprites/playfields/score on the 2600, or running bB output in Stella or on hardware — even if the user just says "make an Atari 2600 game" or "compile this .bas". Includes the full bB language reference distilled from randomterrain.com, 90+ working example programs, and native compiler install instructions.
+description: Write, compile, and debug batari Basic (bB) programs and games for the Atari 2600. Use this skill whenever the task involves batari Basic, bB, .bas files compiled to 2600 ROMs, Atari 2600 game programming in BASIC, sprites/playfields/score on the 2600, or running bB output in Stella or on hardware — even if the user just says "make an Atari 2600 game" or "compile this .bas". Includes the full bB language reference distilled from randomterrain.com, 90+ working example programs, and cross-platform compiler setup (portable wasm toolchain or native build).
 ---
 
 # batari Basic (bB) skill
@@ -23,7 +23,11 @@ compile.
    default `adventure.bas` (genre fits: `space_invaders.bas`,
    `breakout.bas`, `pong.bas`) — so the compiled ROM stays ALE-testable
    with one copy: `cp adventure.bas.bin adventure.bin` (details in
-   `references/running-in-an-emulator.md`).
+   `references/running-in-an-emulator.md`). **Caveat:** javatari guesses
+   the controller from the ROM's filename, so a name matching a paddle
+   title (`breakout`, `kaboom`, `warlords`, `bugs`, …) boots in paddle
+   mode and ignores the arrow keys. Harmless if you set
+   `Javatari.PADDLES_MODE = 0` on the page — see the same reference.
 3. **Compile often, in small increments.** After each feature is added:
    `scripts/bb-build.sh game.bas` (finds the compiler, keeps its intermediate
    files out of your project, and exits non-zero if no valid ROM appeared), or
@@ -33,8 +37,10 @@ compile.
    `references/troubleshooting.md`.
 4. **Never trust untested code.** Every code block you write should have
    been compiled before you hand it over. If the compiler is not installed,
-   follow `references/installation.md` (5 minutes, native build, no
-   wasmtime needed).
+   the fastest route is `scripts/get-bb-wasm.sh` — one command, works on
+   Linux/macOS/Windows, no C toolchain, and emits byte-identical ROMs to a
+   native build. Build natively instead per `references/installation.md` if
+   you want the last 60 ms per compile.
 5. **Compiling is not evidence that the game works.** The bugs that cost the
    most time all compile cleanly and then show a black or frozen screen —
    see the silent-failure list in `references/troubleshooting.md`. Run the
@@ -42,7 +48,8 @@ compile.
    compiler cannot tell you the sprite is invisible or the grid is
    misaligned.
 
-If no batari-Basic directory exists nearby, install per
+If no batari-Basic directory exists nearby, either run
+`scripts/get-bb-wasm.sh` (portable, no build) or install natively per
 `references/installation.md` and use `/path/to/batari-Basic/2600bas`.
 
 ## The canonical game skeleton
@@ -169,7 +176,7 @@ Read only what the task needs (each file has a contents list at top):
 
 | Task | Read |
 |---|---|
-| Install/compile the toolchain | `references/installation.md` |
+| Install the toolchain (wasm or native), cross-platform | `references/installation.md` |
 | First game, program structure, title/game-over screens | `references/getting-started.md` |
 | Variables, dim, const, bit ops, fixed point, rand, data | `references/variables-and-data.md` |
 | goto/gosub/if-then/on-goto, smartbranching | `references/flow-control.md` |
@@ -221,9 +228,11 @@ shell until killed. `timeout` guarantees a hung GUI can't stall the agent.
   screen; and the page **must be served over http** — over `file://` the
   browser blocks the ROM fetch and javatari reports the misleading
   `Could not load file: game.bas.bin / Error: 0`, which is an XHR status
-  of zero, not a path problem. `scripts/bb-serve.sh` and
-  `scripts/bb-page-check.py` check both. Details in
-  `references/running-in-an-emulator.md`.
+  of zero, not a path problem. A third trap costs nothing to pre-empt:
+  set `Javatari.PADDLES_MODE = 0` on the page, or javatari may infer
+  paddles from the ROM's filename and silently ignore the arrow keys.
+  `scripts/bb-serve.sh` and `scripts/bb-page-check.py` check all three.
+  Details in `references/running-in-an-emulator.md`.
 
 ## Advice for games that actually work
 

@@ -2,7 +2,7 @@
 
 Purpose: a troubleshooting reference — how the bB compilation pipeline works, how to read error output, a dictionary of common error messages with fixes, runtime problems (blank screen, wrong colors, jitter), and the basics of inline assembly (`asm`...`end`, `include`, `includesfile`, `inline`). For LLMs that know normal BASIC but little about bB or the Atari 2600.
 
-Contents: [Pipeline](#the-compilation-pipeline-which-stage-each-error-comes-from) · [Compile output](#reading-compile-output-and-generated-files) · [Searching the .asm file](#searching-the-generated-asm-file) · [Error dictionary](#error-dictionary) · [Verbose-error quirks](#verbose-error-quirks-message--cause--fix) · [Unresolved symbol names](#specific-unresolved-symbol-names) · [Blank screen](#blank-screen) · [Silent runtime failures](#silent-runtime-failures-black-or-frozen-screen-no-compiler-error) · [Score color bleed](#players-use-the-score-color) · [Timing problems](#timing-problems-jitter-shaking-rolling) · [Old versions](#games-for-earlier-versions-of-bb--upgrading) · [Emulator arrow keys](#arrow-keys-not-working-in-an-emulator) · [asm blocks](#asm--end--inline-assembly) · [include/includesfile/inline](#include--includesfile--inline--adding-asm-modules) · [Hacking .asm files](#hacking-bbs-asm-files) · [Debugging workflow](#debugging-workflow) · [Common mistakes](#common-mistakes)
+Contents: [Pipeline](#the-compilation-pipeline-which-stage-each-error-comes-from) · [Compile output](#reading-compile-output-and-generated-files) · [Searching the .asm file](#searching-the-generated-asm-file) · [Error dictionary](#error-dictionary) · [Verbose-error quirks](#verbose-error-quirks-message--cause--fix) · [Unresolved symbol names](#specific-unresolved-symbol-names) · [EQU: Value mismatch](#equ-value-mismatch--a-dim-alias-collides-with-a-built-in-name) · [Blank screen](#blank-screen) · [Silent runtime failures](#silent-runtime-failures-black-or-frozen-screen-no-compiler-error) · [Score color bleed](#players-use-the-score-color) · [Timing problems](#timing-problems-jitter-shaking-rolling) · [Old versions](#games-for-earlier-versions-of-bb--upgrading) · [Emulator arrow keys](#arrow-keys-not-working-in-an-emulator) · [asm blocks](#asm--end--inline-assembly) · [include/includesfile/inline](#include--includesfile--inline--adding-asm-modules) · [Hacking .asm files](#hacking-bbs-asm-files) · [Debugging workflow](#debugging-workflow) · [Common mistakes](#common-mistakes)
 
 ## The compilation pipeline (which stage each error comes from)
 
@@ -61,6 +61,7 @@ Table format: message → meaning → fix.
 | `Branch out of range` (assembler) | An `if-then` jump target is too far away — a plain `then` jump can only go **forward 127 bytes or backward 128 bytes** | Easiest: add `set smartbranching on` at the top of your program (compiler then picks `then` vs `then goto` for you). Alternative: write `if a=1 then goto 40` instead of `if a=1 then 40` — but the assembler gives little help finding which line failed, so you may have to change all relevant `then`s to `then goto` |
 | `Duplicate label ...` (assembler) | The same label or line number used on two different lines (e.g. `__Lizard_Meat` twice) | Rename one of the labels in your BASIC source. **Note:** the assembler sometimes reports bogus duplicate labels (an assembler bug — sometimes hundreds, only the first is shown). Ignore them if the game builds successfully, or if the build fails but the unresolved-symbol list is non-empty (fix the symbols first) |
 | `Unresolved symbol ...` (assembler) | See [next topic](#unresolved-symbols) | See below |
+| `2600basic.h (176): error: EQU: Value mismatch.` together with `2600basic_variable_redefs.h (N): error: EQU: Value mismatch.` (assembler) | A `dim` **alias name** collides with a built-in bB symbol — see [EQU: Value mismatch](#equ-value-mismatch--a-dim-alias-collides-with-a-built-in-name) | Rename the alias: `dim lives = i` → `dim crafts = i` |
 | `(1767) Error: Value in 'cmp #512' must be <$100` (assembler) | A value used in a comparison or assignment (here 512) is too large — **all values must be 0–255, except score** (and score can't be compared normally either) | Keep values in 0–255; split larger numbers across variables or compare the score digit-by-digit |
 | Syntax errors (assembler) | Typographical error in a `data` statement, `player`/`playfield` declaration, inline asm, or other places | Often only fixable by searching the composite `.asm` file (see above) |
 | `2600 Basic Compilation Failed!` (any stage) | Generic bB failure banner | Use the messages above/below it to find the stage and cause |
@@ -100,6 +101,53 @@ Any time the assembler finds an error it prints an unresolved-symbol list:
 |---|---|---|
 | `BS_jsr` | You pasted code from a bankswitching program into a 4k program and left `... bank n` calls in | Remove every use of `bank` |
 | `qtcontroller` | Duplicate labels (each mismatch is listed with the error), or a stray **question mark in a label** (e.g. copy-pasted from sound-effect template code) | Fix the labels; remove the `?` |
+
+## `EQU: Value mismatch` — a dim alias collides with a built-in name
+
+Symptom: the build prints `2600 Basic compilation complete.` and then dies in the assembler:
+
+```
+2600 Basic compilation complete.
+2600basic.h (176): error: EQU: Value mismatch.
+2600basic_variable_redefs.h (3): error: EQU: Value mismatch.
+
+Fatal assembly error: Source is not resolvable.
+```
+
+Neither line names your variable or your `.bas` file, and the "compilation complete" above them is misleading — the bB stage really did succeed; the **assembler** is refusing to give one symbol two addresses.
+
+Cause: `dim <name> = <var>` emits `<name> = <var>` into `2600basic_variable_redefs.h`. If `<name>` is already EQU'd in `2600basic.h`, the two definitions disagree and the assembler stops. The line number in the `_redefs.h` message is the offending `dim`'s position in **your dim list** (reversed), which is the only clue to which one it was.
+
+**The direction matters** — only one of these is a collision:
+
+| Code | Result | Why |
+|---|---|---|
+| `dim lives = i` | **fails** | `lives` is the alias name, and it is already a built-in symbol |
+| `dim crafts = i` | compiles | `crafts` is not a built-in name |
+| `dim borrowed = lives` | compiles | `lives` is the *storage*, which is exactly the [borrowing](variables-and-data.md#var0-var47-playfield-variables--warning) the manual encourages |
+
+Reserved names to avoid as `dim` aliases (from `includes/2600basic.h`). The natural game-programming words are the dangerous ones — `lives`, `score`, `paddle`, `rand`, `playfield`, `objecty`:
+
+```
+a-z, A-Z            temp1-temp7        var0-var47         aux1-aux6
+stack1-stack4       score              scorecolor         scorepointers
+lives               lifecolor          lifepointer        statusbarlength
+rand                paddle             currentpaddle      objecty
+playfield           playfieldbase      playfieldpos       pfadjust
+pfwidth             pfcolortable       pfheighttable      pfscore1
+pfscore2            pfscorecolor       PF1L PF1R PF2L PF2R
+player0x/y          player1x/y         player0/1color     player0/1height
+player0/1pointer    player0/1pointerlo player0/1pointerhi
+missile0x/y         missile1x/y        missile0/1height
+ballx               bally              ballheight
+```
+
+To regenerate this list for your own bB version:
+
+```bash
+grep -oE "^[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*=" batari-Basic/includes/2600basic.h \
+  | sed 's/[[:space:]]*=//' | sort -u
+```
 
 ## Blank screen
 

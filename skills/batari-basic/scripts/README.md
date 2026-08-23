@@ -7,11 +7,12 @@ every bB game; everything game-specific stays in your hands.
 | Script | Does |
 |---|---|
 | `bb-build.sh <game.bas> [args]` | Compile and verify a ROM appeared. Exits non-zero on failure. |
+| `get-bb-wasm.sh` | Ensure a portable wasm bB toolchain exists; prints its dir. |
 | `get-gopher2600.sh` | Ensure the headless emulator exists; prints its path. |
 | `bb-headless.sh <rom> <steps.txt> [secs]` | Run the ROM under gopher2600 HEADLESS with a command script. |
 | `frame-check.py <shot.png>...` | Flag blank and frozen frames in a batch of screenshots. |
 | `bb-serve.sh [dir] [port]` | Serve a directory so javatari.js can fetch the ROM at all. |
-| `bb-page-check.py <page-url>...` | Verify a javatari page's ROM reference actually resolves. |
+| `bb-page-check.py <page-url>...` | Verify a javatari page's ROM reference resolves, and warn on the paddle-mode trap. |
 
 Typical loop:
 
@@ -67,6 +68,15 @@ looking at the frame is both faster and more informative.
   directory beside the `.bas` file or any parent, then `$PATH`. It compiles
   from a scratch directory because `2600bas` drops `bB.asm`, `includes.bB`
   and `2600basic_variable_redefs.h` into the current directory.
+- `BB_TOOLCHAIN=auto|native|wasm` picks the compiler. `auto` (default) uses a
+  native bB if it can find one and otherwise falls back to the wasm build, so
+  `get-bb-wasm.sh` alone is enough to work on a machine with no C toolchain —
+  the point being macOS and Windows, where upstream ships nothing else. Both
+  toolchains were verified to emit byte-identical ROMs.
+- `get-bb-wasm.sh` fetches the bB wasm distribution *and* a `wasmtime` binary
+  into the cache. It deliberately does not run wasmtime's official installer
+  script, which writes to `$HOME` and edits shell profiles; a cached binary is
+  reversible by deleting one directory.
 - `get-gopher2600.sh` caches the binary in `${XDG_CACHE_HOME:-~/.cache}/batari-basic`
   (override with `BB_CACHE`) so it never lands in a git tree, and honours an
   existing `$BB_GOPHER2600` or a `gopher2600` on `$PATH`. Only linux/amd64 is
@@ -83,6 +93,9 @@ looking at the frame is both faster and more informative.
   but `Error: 0` is an XHR status of zero — the browser blocked the request
   over CORS and the path was never at fault. The script separates that case
   from a genuinely wrong relative path (which javatari reports as *nothing
-  at all*, just an endless loading screen) in one line. Both traps, and the
-  `file:`-guard to put in the page, are in
+  at all*, just an endless loading screen) in one line. It also warns when
+  the ROM's *filename* will make javatari guess paddles — a joystick game
+  called `piece-o-cake.bas.bin` or `breakout.bas.bin` boots in paddle mode
+  and appears to be steered by A and Space while the arrow keys do nothing.
+  All three traps, and the page snippets that pre-empt them, are in
   `references/running-in-an-emulator.md`.

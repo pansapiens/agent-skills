@@ -9,6 +9,13 @@
 #   $BB_HOME/2600bas
 #   batari-Basic/2600bas in the .bas file's directory or any parent
 #   2600bas on $PATH
+#
+# BB_TOOLCHAIN selects how to compile:
+#   auto   (default) native if a native bB is findable, else wasm
+#   native only the native binaries
+#   wasm   the wasm build under wasmtime - portable, no build step, and
+#          verified to produce byte-identical ROMs (scripts/get-bb-wasm.sh
+#          fetches it). From v1.9 upstream publishes ONLY wasm artifacts.
 set -euo pipefail
 
 if [ $# -lt 1 ]; then
@@ -34,24 +41,75 @@ find_compiler() {
     return 1
 }
 
-if ! CC=$(find_compiler); then
+# A wasm bB dir: has the .wasm modules and upstream's 2600basic.sh launcher.
+find_wasm_bB() {
+    if [ -n "${bB:-}" ] && [ -f "$bB/2600basic.wasm" ]; then echo "$bB"; return 0; fi
+    if [ -n "${BB_HOME:-}" ] && [ -f "$BB_HOME/2600basic.wasm" ]; then echo "$BB_HOME"; return 0; fi
+    local c="${BB_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/batari-basic}/bB"
+    if [ -f "$c/2600basic.wasm" ]; then echo "$c"; return 0; fi
+    return 1
+}
+
+TOOLCHAIN="${BB_TOOLCHAIN:-auto}"
+CC=""; WASM_BB=""
+case "$TOOLCHAIN" in
+    native) CC=$(find_compiler) || true ;;
+    wasm)   WASM_BB=$(find_wasm_bB) || true ;;
+    auto)   CC=$(find_compiler) || WASM_BB=$(find_wasm_bB) || true ;;
+    *) echo "bb-build: BB_TOOLCHAIN must be auto, native or wasm" >&2; exit 2 ;;
+esac
+
+if [ -z "$CC" ] && [ -z "$WASM_BB" ]; then
     cat >&2 <<'EOF'
-bb-build: 2600bas not found.
-Set BB_HOME=/path/to/batari-Basic, or install it - see references/installation.md.
+bb-build: no batari Basic toolchain found.
+Either:
+  - set BB_HOME=/path/to/batari-Basic (a native build), or
+  - run scripts/get-bb-wasm.sh to fetch the portable wasm toolchain
+See references/installation.md.
 EOF
     exit 1
 fi
 
-# 2600bas scatters intermediates (bB.asm, includes.bB,
-# 2600basic_variable_redefs.h) into the *current* directory while writing the
-# ROM next to the source. Compile from a scratch directory so those land
-# somewhere disposable instead of in the project.
-SCRATCH=$(mktemp -d "${TMPDIR:-/tmp}/bb-build.XXXXXX")
-trap 'rm -rf "$SCRATCH"' EXIT
-
 set +e
-OUT=$(cd "$SCRATCH" && "$CC" "$BAS" "$@" 2>&1)
-RC=$?
+if [ -n "$CC" ]; then
+    # 2600bas scatters intermediates (bB.asm, includes.bB,
+    # 2600basic_variable_redefs.h) into the *current* directory while writing
+    # the ROM next to the source. Compile from a scratch directory so those
+    # land somewhere disposable instead of in the project.
+    SCRATCH=$(mktemp -d "${TMPDIR:-/tmp}/bb-build.XXXXXX")
+    trap 'rm -rf "$SCRATCH"' EXIT
+    OUT=$(cd "$SCRATCH" && "$CC" "$BAS" "$@" 2>&1)
+    RC=$?
+else
+    # The wasm build runs under wasmtime, which only exposes the directories
+    # it is given (--dir). Upstream's launcher passes `--dir=.`, so the
+    # compile has to happen *in* the source directory: from anywhere else
+    # wasmtime cannot read the .bas, resolve the user's own `include` files,
+    # or write the ROM. Intermediates therefore land next to the source, so
+    # remove the ones we created and leave any that were already there.
+    if [ -n "${BB_WASMTIME:-}" ]; then
+        PATH="$(dirname "$BB_WASMTIME"):$PATH"
+    else
+        PATH="${BB_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/batari-basic}:$PATH"
+    fi
+    export PATH
+    if ! command -v wasmtime >/dev/null 2>&1; then
+        echo "bb-build: wasmtime not found (needed for BB_TOOLCHAIN=wasm)." >&2
+        echo "Run scripts/get-bb-wasm.sh, or set BB_WASMTIME=/path/to/wasmtime." >&2
+        exit 1
+    fi
+    DIR=$(dirname "$BAS")
+    PRE=$(mktemp "${TMPDIR:-/tmp}/bb-build.XXXXXX")
+    trap 'rm -f "$PRE"' EXIT
+    for f in bB.asm includes.bB 2600basic_variable_redefs.h; do
+        [ -e "$DIR/$f" ] && echo "$f" >> "$PRE"
+    done
+    OUT=$(cd "$DIR" && bB="$WASM_BB" sh "$WASM_BB/2600basic.sh" "$(basename "$BAS")" "$@" 2>&1)
+    RC=$?
+    for f in bB.asm includes.bB 2600basic_variable_redefs.h; do
+        grep -qx "$f" "$PRE" 2>/dev/null || rm -f "$DIR/$f"
+    done
+fi
 set -e
 
 BIN="$BAS.bin"

@@ -36,6 +36,23 @@ CART_RE = re.compile(
     r"""Javatari\s*\.\s*(?:CARTRIDGE_URL|CART|ROM)\s*=\s*["']([^"']+)["']"""
 )
 SCREEN_RE = re.compile(r"""id\s*=\s*["']javatari-screen["']""")
+PADDLES_RE = re.compile(r"""Javatari\s*\.\s*PADDLES_MODE\s*=""")
+
+# Javatari's PADDLES_MODE defaults to -1 ("auto"). For a ROM it does not know
+# by hash — every ROM you compile — "auto" means guessing the controller from
+# the FILENAME against its list of paddle titles. A joystick game whose name
+# matches boots in paddle mode, where the paddle buttons occupy the same
+# SWCHA bits as joystick left/right: the game is then steered by A and Space
+# and ignores the arrow keys. Subset of javatari's list that a bB remake or a
+# generically-named test ROM is actually likely to hit.
+PADDLE_TITLE_RE = re.compile(
+    r"PADDLE|BREAKOUT|SUPERB|WARLORDS|STEEPLE.*CHASE|VIDEO.*OLYMPICS|"
+    r"CIRCUS.*ATARI|KABOOM|BUGS((?!BUNNY).)*|PICNIC|PIECE.*O.*CAKE|"
+    r"BACKGAMMON|BLACKJACK|CANYON.*BOMBER|CASINO|GUARDIAN|MARBLE.*CRAZE|"
+    r"NIGHT.*DRIVER|PARTY.*MIX|POKER.*PLUS|SECRET.*AGENT|SOLAR.*STORM|"
+    r"SPEEDWAY|STREET.*RACER|STUNT.*CYCLE|EGGOMANIA|JEDI.*ARENA",
+    re.I,
+)
 SCRIPT_RE = re.compile(r"""<script[^>]+src\s*=\s*["']([^"']*javatari[^"']*\.js)["']""", re.I)
 
 
@@ -123,6 +140,20 @@ def check(page_url):
                 "Javatari will fail to pick a cartridge format."
             )
 
+    # Warning, not a failure: the page loads, but the controls will be wrong.
+    warnings = []
+    if rom and not PADDLES_RE.search(html):
+        name = rom.rsplit("/", 1)[-1]
+        if PADDLE_TITLE_RE.search(name.replace("_", " ").replace("-", " ")):
+            warnings.append(
+                f"ROM name {name!r} matches javatari's paddle-title list, and the\n"
+                "    page does not set Javatari.PADDLES_MODE. The game will boot in\n"
+                "    paddle mode: the arrow keys will do nothing and it will appear\n"
+                "    to be steered by A and Space (the two paddle buttons share\n"
+                "    SWCHA bits with joy0left/joy0right). Add:\n"
+                "        Javatari.PADDLES_MODE = 0;   // or 1 if it really uses paddles"
+            )
+
     if problems:
         print(f"FAIL {page_url}")
         for p in problems:
@@ -130,6 +161,8 @@ def check(page_url):
         return False
 
     print(f"ok   {page_url}  (ROM {rom} loads)")
+    for w in warnings:
+        print(f"  ! {w}")
     return True
 
 

@@ -49,7 +49,14 @@ In the **standard kernel without Superchip RAM**, var0-var47 are the playfield. 
 - If you **enable Superchip RAM**, the playfield moves to extra RAM and var0-var47 become **48 free regular variables** you can dim like any others (80 more special read/write variables r/w000-r/w079 are also available). See the Superchip RAM page of the bB manual for details.
 - **Multisprite kernel**: do not use var0-var47 as variables (the playfield lives there).
 
-Other borrowable variables (standard kernel): `statusbarlength` if you don't use the Life Counter or Status Bar minikernels; `lives` and `lifecolor` if you also don't use pfscore bars. `dim` works on all of these.
+Other borrowable variables (standard kernel): `statusbarlength` if you don't use the Life Counter or Status Bar minikernels; `lives` and `lifecolor` if you also don't use pfscore bars. `dim` works on all of these — but only as the **storage** side, on the right of the `=`:
+
+```
+   dim _Hero_Lives = lives     rem  fine: borrowing lives as storage
+   dim lives = i               rem  FAILS: lives is a built-in symbol name
+```
+
+Putting a built-in name on the left is a different thing entirely, and the assembler rejects it with an `EQU: Value mismatch` that names neither your variable nor your file — see [EQU: Value mismatch](troubleshooting.md#equ-value-mismatch--a-dim-alias-collides-with-a-built-in-name).
 
 ## dim — descriptive variable aliases
 
@@ -64,6 +71,7 @@ Rules and facts:
 
 - First character of an alias: a letter (upper or lower) or an underscore. Following characters: letters, numbers, underscores. **Never use a dot/period** in an alias.
 - An alias must not match or begin with a known bB keyword or internal label (e.g., you can't use `next` or `pfpixel`; `scorechange` is bad but `changescore` or `Change_Score` are fine).
+- An alias must also not match a built-in **variable** name — `lives`, `score`, `rand`, `paddle`, `playfield`, `objecty` and the rest of the list in [troubleshooting](troubleshooting.md#equ-value-mismatch--a-dim-alias-collides-with-a-built-in-name). These are the ordinary words a game programmer reaches for first, and the resulting error points at bB's own headers rather than your code.
 - Recommended convention: one underscore + capitalized words for aliases (`_Flying_Cat_Data`), two underscores for labels (`__Game_Over`). Then you never collide with keywords or labels.
 - More than one alias may be mapped to the same variable — useful when reusing a variable in different parts of the game.
 - Aliases cost zero ROM. Dim for aliases can appear anywhere in the program (but put them all together near the top so helpers can read your code). This anywhere-rule is **not** true for fixed-point dims.
