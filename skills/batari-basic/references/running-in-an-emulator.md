@@ -36,12 +36,37 @@ https://github.com/jetsetilly/gopher2600 (Go, GPL3, actively maintained).
 display server needed for HEADLESS mode:
 
 ```bash
+# FIRST: look for a binary the project already has. Most repos that use this
+# skill keep one at the repo root. Only download if this finds nothing.
+ls ./gopher2600 ../gopher2600 2>/dev/null || command -v gopher2600
+
 curl -sfL -o gopher2600 \
   https://github.com/jetsetilly/gopher2600/releases/latest/download/gopher2600_linux_amd64
 chmod +x gopher2600
 ./gopher2600            # no args → launches the SDL GUI (RUN mode); NOT a help menu
 ./gopher2600 --help     # prints the execution modes: RUN DEBUG HEADLESS DISASM ...
 ```
+
+> **Never `git clone` or `go build` the gopher2600 source to work out command
+> syntax.** The binary documents itself — `HELP` and `HELP <CMD>` inside
+> HEADLESS mode print the authoritative usage string (see below). Cloning the
+> repo to grep `.go` files is a dead end that has burned dozens of turns in
+> past sessions. `strings ./gopher2600` is also useless — Go binaries
+> concatenate string constants, so the output is unparseable soup.
+
+### Ask the emulator, don't guess
+
+Any time a HEADLESS command doesn't behave as expected, get the real usage
+string from the binary before experimenting:
+
+```bash
+{ sleep 1; echo "HELP"; sleep 1; echo "QUIT"; } | ./gopher2600 HEADLESS "$ROM"
+{ sleep 1; echo "HELP STICK"; sleep 1; echo "QUIT"; } | ./gopher2600 HEADLESS "$ROM"
+```
+
+`HELP STICK` ends with an exact `Usage:` line. Trust it over any recipe,
+including this document — the binary is the source of truth and its syntax
+can change between releases.
 
 ### HEADLESS mode (verified recipe)
 
@@ -78,36 +103,97 @@ STEP FRAME            # advance exactly one frame (repeat to play)
 SCREENSHOT /abs/p.png # save the current frame (also .jpg)
 PANEL HOLD SELECT     # hold a console switch: SELECT or RESET
 PANEL RELEASE SELECT  # release it
-STICK RIGHT           # hold P1 stick right  (see STICK notes below)
-STICK LEFT            # hold P1 stick left
+STICK LEFT RIGHT      # player 0's stick pushed right (see STICK below)
+STICK LEFT UP         # player 0's stick pushed up
 TV                    # current frame / scanline / clock position
 HELP [CMD]            # list commands, or detail one (e.g. HELP STICK)
 QUIT                  # exit
 ```
 
-**`STICK` — verified syntax** (the in-emulator `HELP STICK` text is
-misleading; these are the forms that actually work):
+#### `STICK` — the first argument is a PORT, not a direction
+
+This is the single biggest time-sink in headless testing. `HELP STICK` gives
+the exact grammar:
 
 ```
-STICK RIGHT           # 1-token form: must be LEFT or RIGHT
-STICK LEFT
-STICK RIGHT FIRE      # 2-token form: <LEFT|RIGHT> <state>
-STICK RIGHT UP        #   2nd token ∈ LEFT RIGHT UP DOWN FIRE
-STICK RIGHT NORIGHT   #   or a release: NOLEFT NORIGHT NOUP NODOWN NOFIRE
+Usage: STICK [LEFT|RIGHT] [LEFT|RIGHT|UP|DOWN|FIRE|NOLEFT|NORIGHT|NOUP|NODOWN|NOFIRE|SECOND|NOSECOND]
 ```
 
-- **No player number** — `STICK 0 RIGHT` errors with `unrecognised argument
-  (0)`. Just `STICK RIGHT`.
-- A **lone** token must be `LEFT` or `RIGHT`; `UP`/`DOWN`/`FIRE`/`NO*` must
-  be the **second** token (paired with a `LEFT`/`RIGHT`). Three or more
-tokens are rejected.
-- Input is **sticky**: it persists across all subsequent frames until you
-  issue another `STICK`. So `STICK RIGHT` then 100× `STEP FRAME` drives the
-  car right the whole time — no need to re-issue it.
-- To **release** a direction, use its `NO<dir>` form (e.g. `STICK RIGHT
-  NORIGHT`). Because input is cumulative, a held direction you don't release
-  keeps applying — e.g. `STICK RIGHT` then `STICK LEFT` holds *both* (net
-  zero) until you `NORIGHT`.
+**Argument 1 is the console port — which player.** Argument 2 is the action.
+`LEFT` appears in both lists, which is what makes this so easy to get wrong.
+
+| Port arg | Console socket | bB variables |
+|---|---|---|
+| `LEFT`  | left port  = player 0 | `joy0up/down/left/right`, `joy0fire` |
+| `RIGHT` | right port = player 1 | `joy1up/down/left/right`, `joy1fire` |
+
+Verified by `PEEK 0x280` (SWCHA): `STICK LEFT LEFT` → `0xbf` (bit 6 clear =
+P0 left); `STICK RIGHT LEFT` → `0xfb` (bit 2 clear = P1 left).
+
+```
+STICK LEFT UP         # P0 up        — almost every bB game uses joy0, so
+STICK LEFT DOWN       # P0 down        nearly every command starts "STICK LEFT"
+STICK LEFT LEFT       # P0 left
+STICK LEFT RIGHT      # P0 right
+STICK LEFT FIRE       # P0 fire button
+STICK LEFT NOUP       # release P0 up (likewise NODOWN NOLEFT NORIGHT NOFIRE)
+STICK RIGHT FIRE      # P1 fire button
+```
+
+**A one-argument `STICK` is rejected, and does nothing:**
+
+```
+STICK LEFT            # REJECTED: "* LEFT or RIGHT or UP or ... required".
+                      # It selects the left port with no action; it does NOT
+                      # push left. Nothing reaches the ROM.
+STICK RIGHT           # same
+STICK UP              # "* unrecognised argument (UP)" — UP is not a port
+STICK 0 RIGHT         # "* unrecognised argument (0)" — use LEFT/RIGHT, not a
+                      # player number
+```
+
+The emulator does tell you — but two habits make it easy to miss, and that is
+how this ends up costing hours (see the error-checking section below). Always
+pass two arguments.
+
+- Input is **sticky**: it persists across every subsequent frame until you
+  change it. `STICK LEFT RIGHT` then 100× `STEP FRAME` drives right the whole
+  time — no need to re-issue.
+- **Always release** with the matching `NO<dir>`. Because state is cumulative,
+  `STICK LEFT RIGHT` followed by `STICK LEFT LEFT` holds *both* directions
+  (net zero) until you send `STICK LEFT NORIGHT`. Directions you never release
+  keep applying and will corrupt every later step of the test.
+- `FIRE` needs no direction held first. Earlier notes claiming "`STICK FIRE`
+  fails so fire needs a direction" misread the grammar: `STICK FIRE` fails
+  because `FIRE` is not a *port*, and `STICK LEFT FIRE` works because `LEFT`
+  is the port. It is a plain fire press on player 0.
+
+#### Always check for `*` — the debugger's error prefix
+
+Every rejected command prints a line starting with `* ` **on stdout**, and a
+valid command prints nothing. That single rule catches every input mistake:
+
+```bash
+{ sleep 2; echo "SCRIPT $STEPS"; sleep 4; echo "QUIT"; } \
+    | ./gopher2600 HEADLESS "$ROM" 2>/dev/null | grep '^\*' \
+    && echo "^^ commands were REJECTED — the ROM never saw that input" \
+    || echo "no command errors"
+```
+
+Two habits will hide these messages from you, and together they are what turns
+a one-line typo into an afternoon of debugging the wrong thing:
+
+- **`>/dev/null 2>&1` on the emulator call.** Tempting, because HEADLESS is
+  chatty. It also throws away every error. Discard *stderr* if you must
+  (`2>/dev/null`), never stdout.
+- **Grepping for the word "error".** The debugger never uses it. Real messages
+  read `* unrecognised argument (UP)`, `* unrecognised command (FOO)`, and
+  `* LEFT or RIGHT or UP or ... required`. A `grep -iE "unrecognised|error"`
+  misses the whole "... required" family — which is exactly what a
+  one-argument `STICK` produces. Match `^\*` instead.
+
+If a scripted input appears to do nothing, check for `*` lines *before* you
+touch the game's input handling. The command was probably never accepted.
 
 #### Worked example — start a game, drive, and verify
 
@@ -125,12 +211,13 @@ STEPS=/tmp/steps.txt
   echo "PANEL RELEASE SELECT"
   for i in $(seq 1 30); do echo "STEP FRAME"; done        # gameplay begins
   echo "SCREENSHOT /tmp/play.png"                         # capture gameplay
-  echo "STICK RIGHT"                                      # hold right
+  echo "STICK LEFT RIGHT"                                 # P0 (left port) pushes right
   for i in $(seq 1 60); do echo "STEP FRAME"; done        # drive for ~1 s
   echo "SCREENSHOT /tmp/move.png"                         # capture after input
+  echo "STICK LEFT NORIGHT"                               # ALWAYS release; input is sticky
 } > "$STEPS"
 { sleep 2; echo "SCRIPT $STEPS"; sleep 4; echo "QUIT"; } \
-    | ./gopher2600 HEADLESS "$ROM" 2>&1 | grep -iE "unrecognised|error" || echo "no command errors"
+    | ./gopher2600 HEADLESS "$ROM" 2>/dev/null | grep '^\*' || echo "no command errors"
 ```
 
 Verify by diffing the screenshots (PIL): `title` vs `play` should differ
@@ -159,8 +246,9 @@ Caveats (verified):
   black); use repeated `STEP FRAME`.
 - A command piped immediately after a running command (STEP/GOTO/RUN) can
   be swallowed — the `SCRIPT` recipe above avoids this.
-- `STICK` with a player number (`STICK 0 RIGHT`) or 3+ tokens is rejected;
-  see the STICK notes above.
+- `STICK` needs **two** arguments: `<PORT> <ACTION>`, e.g. `STICK LEFT UP`.
+  A player number (`STICK 0 RIGHT`) is rejected, and a lone `STICK LEFT` is
+  accepted but does nothing. See the STICK section above.
 - GUI modes (`RUN`, `DEBUG`) panic under Xvfb (`divide by zero` on the
   0 Hz refresh rate Xvfb reports) — GUI needs a real desktop display. For
   headless CI, `HEADLESS` is the only mode that works without a display.

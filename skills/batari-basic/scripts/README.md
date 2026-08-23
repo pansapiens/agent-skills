@@ -47,8 +47,15 @@ scripts/bb-page-check.py http://localhost:8600/mygame/index.html
 switch starts the game, whether fire is a tap or a hold, how many frames a
 drop takes — all of that differs per game, and a canned input sequence would
 quietly test nothing. Write the steps by hand from what the game does. The
-command vocabulary, and the `STICK` syntax quirks that the emulator's own
-`HELP` gets wrong, are in `references/running-in-an-emulator.md`.
+command vocabulary, and the `STICK` port-vs-direction trap, are in
+`references/running-in-an-emulator.md`. When in doubt about any command's
+syntax, run `HELP <CMD>` inside HEADLESS mode — the binary's own usage string
+is authoritative. Never clone or build the gopher2600 source to find out.
+
+If you drive the emulator yourself rather than through `bb-headless.sh`, keep
+its **stdout**: rejected commands are reported there, prefixed with `* `, and
+`grep '^\*'` is the check. Do not `>/dev/null 2>&1` the emulator, and do not
+grep for "error" — the debugger never uses the word.
 
 **They do not decide whether the game is correct.** `frame-check.py` answers
 one narrow question — "is this frame blank, or identical to the last one?" —

@@ -208,7 +208,14 @@ shell until killed. `timeout` guarantees a hung GUI can't stall the agent.
 - **gopher2600** (agent testing, no display): single pre-compiled Linux
   binary from GitHub releases; `HEADLESS` mode runs scripted input and
   saves PNG screenshots with zero X server — the best way to verify a
-  game actually renders and responds.
+  game actually renders and responds. Check for a binary the project
+  already ships (`ls ./gopher2600`) before downloading, and **never clone
+  or `go build` the source** — run `HELP <CMD>` inside HEADLESS mode to get
+  a command's real syntax. Joystick input is
+  `STICK <LEFT|RIGHT-port> <ACTION>`, e.g. `STICK LEFT UP` for player 0 up;
+  a one-argument `STICK LEFT` is a port with no action, not a leftward push.
+  Check rejected commands with `grep '^\*'` on the emulator's **stdout** —
+  the debugger prefixes errors with `*` and never says "error".
 - **Stella** (reference emulator): `stella game.bas.bin` — arrows move,
   Left Ctrl or Space fires, F2 = console RESET, F1 = SELECT, F12 =
   screenshot. `stella -rominfo rom.bin` works fully headless. Full option

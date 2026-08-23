@@ -60,7 +60,11 @@ OUT=$( { sleep 2; echo "SCRIPT $STEPS"; sleep "$WAIT"; echo "QUIT"; } \
         | timeout $((WAIT + 30)) "$EMU" HEADLESS "$ROM" 2>&1 ) || true
 
 SHOTS=$(printf '%s\n' "$OUT" | grep -c "saving screenshot" || true)
-ERRS=$(printf '%s\n' "$OUT" | grep -iE "unrecognis|error" || true)
+# The debugger prefixes every rejected command with "* " and never uses the
+# word "error", so match the prefix. Grepping for "unrecognis|error" misses the
+# whole "* ... required" family - notably a one-argument STICK, which is a port
+# with no action and sends nothing to the ROM.
+ERRS=$(printf '%s\n' "$OUT" | grep '^\*' || true)
 
 if [ -n "$ERRS" ]; then
     echo "bb-headless: the emulator rejected some commands:" >&2
