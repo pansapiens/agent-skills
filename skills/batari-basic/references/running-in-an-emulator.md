@@ -40,8 +40,35 @@ display server needed for HEADLESS mode:
 # skill keep one at the repo root. Only download if this finds nothing.
 ls ./gopher2600 ../gopher2600 2>/dev/null || command -v gopher2600
 
+scripts/get-gopher2600.sh     # preferred: caches outside any git tree,
+                              # prints the path, picks the right build
+```
+
+`scripts/get-gopher2600.sh` fetches **https://github.com/pansapiens/Gopher2600**,
+a fork carrying one documentation fix, because upstream's `HELP STICK` and
+`HELP KEYPAD` are wrong in a way that costs hours:
+
+> upstream: *"Specify the player with the 0 or 1 arguments."*
+
+`STICK 0 RIGHT` is rejected (`* unrecognised argument (0)`). Both commands take
+`[LEFT|RIGHT]` — the console **port**, LEFT being Player 0 — and upstream's
+help never says so, which leaves the first argument looking like a direction.
+The fork says so explicitly. **Emulation is upstream's, unchanged**; only help
+strings differ, so anything you learn here applies to upstream too.
+
+```bash
+BB_GOPHER2600_UPSTREAM=1 scripts/get-gopher2600.sh   # upstream release instead
+BB_GOPHER2600=/path/to/gopher2600                    # or point at your own
+```
+
+The fix is not yet submitted upstream, and the fork build tracks upstream
+*master* (`v0.58.0-preview`) rather than the last tagged release, so it is
+slightly less battle-tested than upstream's. Use the upstream override if that
+matters more to you than the help text. Downloading by hand also works:
+
+```bash
 curl -sfL -o gopher2600 \
-  https://github.com/jetsetilly/gopher2600/releases/latest/download/gopher2600_linux_amd64
+  https://github.com/pansapiens/Gopher2600/releases/latest/download/gopher2600_linux_amd64
 chmod +x gopher2600
 ./gopher2600            # no args → launches the SDL GUI (RUN mode); NOT a help menu
 ./gopher2600 --help     # prints the execution modes: RUN DEBUG HEADLESS DISASM ...
@@ -113,7 +140,10 @@ QUIT                  # exit
 #### `STICK` — the first argument is a PORT, not a direction
 
 This is the single biggest time-sink in headless testing. `HELP STICK` gives
-the exact grammar:
+the exact grammar (and on an **upstream** binary, ignore its prose line
+"Specify the player with the 0 or 1 arguments" — that form is rejected; the
+fork this skill fetches has it corrected, but the `Usage:` line is right in
+both):
 
 ```
 Usage: STICK [LEFT|RIGHT] [LEFT|RIGHT|UP|DOWN|FIRE|NOLEFT|NORIGHT|NOUP|NODOWN|NOFIRE|SECOND|NOSECOND]

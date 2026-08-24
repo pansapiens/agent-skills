@@ -209,9 +209,12 @@ shell until killed. `timeout` guarantees a hung GUI can't stall the agent.
   binary from GitHub releases; `HEADLESS` mode runs scripted input and
   saves PNG screenshots with zero X server — the best way to verify a
   game actually renders and responds. Check for a binary the project
-  already ships (`ls ./gopher2600`) before downloading, and **never clone
-  or `go build` the source** — run `HELP <CMD>` inside HEADLESS mode to get
-  a command's real syntax. Joystick input is
+  already ships (`ls ./gopher2600`), then `scripts/get-gopher2600.sh`. That
+  fetches the `pansapiens/Gopher2600` fork, which fixes a wrong `HELP STICK`
+  (upstream says the argument is `0` or `1`; it is really the `LEFT`/`RIGHT`
+  port). Emulation is upstream's; `BB_GOPHER2600_UPSTREAM=1` opts out.
+  **Never clone or `go build` the source to look up syntax** — run
+  `HELP <CMD>` inside HEADLESS mode instead. Joystick input is
   `STICK <LEFT|RIGHT-port> <ACTION>`, e.g. `STICK LEFT UP` for player 0 up;
   a one-argument `STICK LEFT` is a port with no action, not a leftward push.
   Check rejected commands with `grep '^\*'` on the emulator's **stdout** —

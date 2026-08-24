@@ -87,7 +87,13 @@ looking at the frame is both faster and more informative.
 - `get-gopher2600.sh` caches the binary in `${XDG_CACHE_HOME:-~/.cache}/batari-basic`
   (override with `BB_CACHE`) so it never lands in a git tree, and honours an
   existing `$BB_GOPHER2600` or a `gopher2600` on `$PATH`. Only linux/amd64 is
-  published upstream; on anything else it tells you to `go install` instead.
+  published; on anything else it tells you to build from source.
+  It fetches **pansapiens/Gopher2600**, a fork whose only change is fixing
+  `HELP STICK`/`HELP KEYPAD` — upstream's says to "specify the player with the
+  0 or 1 arguments", which the parser rejects, and never mentions that the
+  argument is the console *port* (LEFT = Player 0). Emulation is unchanged.
+  `BB_GOPHER2600_UPSTREAM=1` takes upstream's release instead; the two cache
+  under different filenames so neither masks the other.
 - `bb-headless.sh` requires absolute paths, warns about a relative
   `SCREENSHOT` path or a missing `QUIT`, and fails if the emulator rejected a
   command or wrote fewer screenshots than the steps file asked for (usually
