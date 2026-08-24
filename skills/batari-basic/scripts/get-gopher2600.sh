@@ -56,8 +56,10 @@ then re-run with BB_GOPHER2600=/path/to/gopher2600.
 Note: go install always builds UPSTREAM - the fork's module path is still
 github.com/jetsetilly/gopher2600, so it cannot be go-installed by its fork
 path. To get the corrected STICK/KEYPAD help on another platform, clone
-https://github.com/pansapiens/Gopher2600 and run 'make release'. The
-difference is help text only; upstream is fine for everything else.
+https://github.com/pansapiens/Gopher2600 (master carries the fix) and run
+'make release'. You will need SDL2 and OpenGL development headers; see
+.github/workflows/release-linux.yml in that repo for the exact package list.
+The difference is help text only; upstream is fine for everything else.
 EOF
     exit 1
 fi

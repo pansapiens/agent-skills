@@ -61,10 +61,17 @@ BB_GOPHER2600_UPSTREAM=1 scripts/get-gopher2600.sh   # upstream release instead
 BB_GOPHER2600=/path/to/gopher2600                    # or point at your own
 ```
 
-The fix is not yet submitted upstream, and the fork build tracks upstream
-*master* (`v0.58.0-preview`) rather than the last tagged release, so it is
-slightly less battle-tested than upstream's. Use the upstream override if that
-matters more to you than the help text. Downloading by hand also works:
+The fork's `master` carries the fix, and its releases are built from `master`
+by `.github/workflows/release-linux.yml` on any pushed `v*` tag — so
+`releases/latest/download/` always has a current binary. Tags are named
+`<upstream version>-pansapiens.<n>` (e.g. `v0.58.0-preview-pansapiens.2`):
+the upstream version the source came from, plus a fork-owned counter.
+
+Two costs to know about. The fix is **not yet submitted upstream**, and the
+fork tracks upstream *master* (`v0.58.0-preview`) rather than the last tagged
+release, so it is slightly less battle-tested than upstream's binary. Use the
+upstream override if that matters more to you than the help text. Downloading
+by hand also works:
 
 ```bash
 curl -sfL -o gopher2600 \
