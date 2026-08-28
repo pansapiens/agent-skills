@@ -7,6 +7,7 @@ My handcrafted agent skills and `AGENTS.md`.
 ### HPC
 
 - [m3-hpc](skills/m3-hpc/SKILL.md): Submit, monitor, and troubleshoot jobs and common issues on the Monash M3 HPC cluster.
+- [mlerp-hpc](skills/mlerp-hpc/SKILL.md): Submit, monitor, and troubleshoot jobs on the MLeRP (Machine Learning eResearch Platform) cluster — partitions, QoS, MIG GPUs, Strudel2.
 - [slurm-user](skills/slurm-user/SKILL.md): Submit, monitor, and troubleshoot SLURM HPC job submission.
 
 ### Structural biology & bioinformatics
@@ -19,6 +20,7 @@ My handcrafted agent skills and `AGENTS.md`.
 
 ### Misc
 
+- [batari-basic](skills/batari-basic/SKILL.md): Write, compile, and debug batari Basic programs and games for the Atari 2600.
 - [containerbot](skills/containerbot/SKILL.md): Create Dockerfiles for GitHub repos, containerize apps, and troubleshoot Docker build failures (this began as a dedicated Python agent, but probably works better this way under a general purpose harness)
 - [pushbullet](skills/pushbullet/SKILL.md): Interact with the Pushbullet API to send push notifications, links, files, and SMS to phones and devices.
 - [understand-disk-usage](skills/understand-disk-usage/SKILL.md): Investigate Linux disk space, resolve "disk full" issues, and find large files.
