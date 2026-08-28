@@ -134,7 +134,7 @@ scanline of a new frame (not mid-frame) or you get a black image.
 
 ```
 STEP FRAME            # advance exactly one frame (repeat to play)
-SCREENSHOT /abs/p.png # save the current frame (also .jpg)
+SCREENSHOT /abs/p.png # save current frame as 160x214 raw TIA (also .jpg)
 PANEL HOLD SELECT     # hold a console switch: SELECT or RESET
 PANEL RELEASE SELECT  # release it
 STICK LEFT RIGHT      # player 0's stick pushed right (see STICK below)

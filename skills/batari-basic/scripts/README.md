@@ -84,14 +84,18 @@ looking at the frame is both faster and more informative.
   into the cache. It deliberately does not run wasmtime's official installer
   script, which writes to `$HOME` and edits shell profiles; a cached binary is
   reversible by deleting one directory.
-- `get-gopher2600.sh` caches the binary in `${XDG_CACHE_HOME:-~/.cache}/batari-basic`
-  (override with `BB_CACHE`) so it never lands in a git tree, and honours an
-  existing `$BB_GOPHER2600` or a `gopher2600` on `$PATH`. Only linux/amd64 is
-  published; on anything else it tells you to build from source.
-  It fetches **pansapiens/Gopher2600**, a fork whose only change is fixing
-  `HELP STICK`/`HELP KEYPAD` — upstream's says to "specify the player with the
-  0 or 1 arguments", which the parser rejects, and never mentions that the
-  argument is the console *port* (LEFT = Player 0). Emulation is unchanged.
+- `get-gopher2600.sh` caches the binary in `./.cache/batari-basic` (the project
+  directory, so it stays inside the agent's sandbox; override with `BB_CACHE`,
+  or it falls back to `${XDG_CACHE_HOME:-~/.cache}/batari-basic` if the cwd
+  isn't writable), and honours an existing `$BB_GOPHER2600` or a `gopher2600`
+  on `$PATH`. Only linux/amd64 is published; on anything else it tells you to
+  build from source.
+  It fetches **pansapiens/Gopher2600** (master), a fork with two changes: it
+  fixes `HELP STICK`/`HELP KEYPAD` (upstream's says to "specify the player with
+  the 0 or 1 arguments", which the parser rejects, and never mentions that the
+  argument is the console *port* — LEFT = Player 0), and it makes `SCREENSHOT`
+  write the raw **160x214 TIA frame** (unscaled) instead of the GUI's 1026x700
+  render. Emulation is unchanged.
   `BB_GOPHER2600_UPSTREAM=1` takes upstream's release instead; the two cache
   under different filenames so neither masks the other.
 - `bb-headless.sh` requires absolute paths, warns about a relative

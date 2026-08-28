@@ -4,22 +4,35 @@
 # Prints the path to the binary on stdout (and nothing else), so it can be
 # used inline:   EMU=$(scripts/get-gopher2600.sh)
 #
-# The binary is cached outside the skill directory so it never lands in a
-# git working tree. Override the location with BB_CACHE.
+# The binary is cached in the project directory (.cache/batari-basic) so it
+# stays inside the agent's sandbox and is easy to verify/replace. Override
+# the location with BB_CACHE.
 #
-# By default this fetches a FORK build, pansapiens/Gopher2600, which carries a
-# single documentation fix: upstream's HELP STICK and HELP KEYPAD tell you to
-# "specify the player with the 0 or 1 arguments", but the parser rejects that
-# and takes [LEFT|RIGHT] - the console PORT, where LEFT is Player 0. Following
-# the upstream help sends you looking for a direction in the first argument,
-# which is the single most expensive mistake in scripted input (see
-# references/running-in-an-emulator.md). Emulation is byte-for-byte upstream
-# behaviour; only help strings differ.
+# By default this fetches a FORK build, pansapiens/Gopher2600 (master), which
+# carries two changes over upstream:
+#   1. HELP STICK / HELP KEYPAD name the console PORT (LEFT = Player 0,
+#      RIGHT = Player 1) instead of the rejected "0 or 1 arguments" form -
+#      following the upstream help is the single most expensive mistake in
+#      scripted input (see references/running-in-an-emulator.md).
+#   2. SCREENSHOT uses a frameCapture renderer that writes the raw 160x214 TIA
+#      frame (unscaled, one pixel per TIA cell) instead of the GUI's 1026x700
+#      render - better for pixel-level debugging.
+# Emulation is byte-for-byte upstream behaviour; only help strings and the
+# screenshot path differ.
 #
 # Set BB_GOPHER2600_UPSTREAM=1 to take upstream's release instead.
 set -euo pipefail
 
-CACHE="${BB_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/batari-basic}"
+# Default to the project directory (cwd) so the cache stays in the agent's
+# sandbox. BB_CACHE overrides; XDG_CACHE_HOME is honoured only if BB_CACHE is
+# unset AND the cwd is not writable (falls back to the user cache).
+if [ -n "${BB_CACHE:-}" ]; then
+    CACHE="$BB_CACHE"
+elif [ -w "$PWD" ]; then
+    CACHE="$PWD/.cache/batari-basic"
+else
+    CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/batari-basic"
+fi
 
 if [ -n "${BB_GOPHER2600_UPSTREAM:-}" ]; then
     BIN="$CACHE/gopher2600-upstream"
@@ -55,11 +68,12 @@ then re-run with BB_GOPHER2600=/path/to/gopher2600.
 
 Note: go install always builds UPSTREAM - the fork's module path is still
 github.com/jetsetilly/gopher2600, so it cannot be go-installed by its fork
-path. To get the corrected STICK/KEYPAD help on another platform, clone
-https://github.com/pansapiens/Gopher2600 (master carries the fix) and run
-'make release'. You will need SDL2 and OpenGL development headers; see
-.github/workflows/release-linux.yml in that repo for the exact package list.
-The difference is help text only; upstream is fine for everything else.
+path. To get the corrected STICK/KEYPAD help and the raw 160x214 SCREENSHOT on
+another platform, clone https://github.com/pansapiens/Gopher2600 (master
+carries both) and run 'make release'. You will need SDL2 and OpenGL
+development headers; see .github/workflows/release-linux.yml in that repo for
+the exact package list. The differences are help text and the screenshot path;
+upstream is fine for everything else.
 EOF
     exit 1
 fi

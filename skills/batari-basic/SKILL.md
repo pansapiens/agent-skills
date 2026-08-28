@@ -210,9 +210,11 @@ shell until killed. `timeout` guarantees a hung GUI can't stall the agent.
   saves PNG screenshots with zero X server — the best way to verify a
   game actually renders and responds. Check for a binary the project
   already ships (`ls ./gopher2600`), then `scripts/get-gopher2600.sh`. That
-  fetches the `pansapiens/Gopher2600` fork, which fixes a wrong `HELP STICK`
-  (upstream says the argument is `0` or `1`; it is really the `LEFT`/`RIGHT`
-  port). Emulation is upstream's; `BB_GOPHER2600_UPSTREAM=1` opts out.
+  fetches the `pansapiens/Gopher2600` fork (master), which fixes a wrong
+  `HELP STICK` (upstream says the argument is `0` or `1`; it is really the
+  `LEFT`/`RIGHT` port) and makes `SCREENSHOT` write the raw **160x214 TIA
+  frame** (unscaled, one pixel per TIA cell) instead of the GUI's 1026x700
+  render. Emulation is upstream's; `BB_GOPHER2600_UPSTREAM=1` opts out.
   **Never clone or `go build` the source to look up syntax** — run
   `HELP <CMD>` inside HEADLESS mode instead. Joystick input is
   `STICK <LEFT|RIGHT-port> <ACTION>`, e.g. `STICK LEFT UP` for player 0 up;
