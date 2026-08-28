@@ -8,6 +8,19 @@ compatibility: Requires ssh access to the M3 HPC cluster with SLURM tools.
 
 Help the user submit, monitor and troubleshoot SLURM jobs, manage storage and file transfers and understand options for software available or installable on the M3 HPC cluster (formerly known as MASSIVE).
 
+## Check where you are before connecting
+
+Before running any `ssh {username}@m3.massive.org.au ...` command, check whether you are already on M3:
+
+```bash
+hostname
+# If it starts with "m3" (m3-login2, m3-dtn1, m3-comp042, ...) → already on M3.
+# Fallback check: sinfo -h -o "%V" 2>/dev/null && echo "on M3 cluster"
+```
+
+- **On M3**: run commands directly, do not use the `ssh` prefix (SSH-ing to M3 from M3 is redundant and breaks `sshnc.sh` node discovery).
+- **Not on M3**: prefix commands with `ssh {username}@m3.massive.org.au` (see "Running jobs from localhost via SSH" below).
+
 ## Connecting to M3
 
 To connect to the M3 login nodes via SSH, run the following command using your **HPC ID** username and password (not your organisational credentials):
@@ -234,6 +247,7 @@ M3 uses SLURM partitions and Quality of Service (QoS) settings to manage access 
 | `shortq` | Short jobs | Lower wall-time limit, higher priority |
 | `genomics` | Genomics/bioinformatics | Requires QoS `--qos=genomics` |
 | `genomicsb` | Genomics burst | Requires QoS `--qos=genomicsb` |
+| `genomict` | Genomics teaching | Availability varies with teaching period — sometimes open, sometimes restricted to `--qos=irq` only. Check `mon_qos` if a job submitted here is rejected or stays pending |
 | `desktop` | Strudel interactive desktops | Used by Strudel, not typically submitted manually |
 
 > The `desktop` partition is intended for interactive sessions only started using Strudel, and NOT for running large batch jobs.
