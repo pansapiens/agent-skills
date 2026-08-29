@@ -9,6 +9,6 @@ alwaysApply: false
 - For simple projects that use Vue from a CDN, use Javascript.
 - For larger projects use `pnpm`, and `vite` with Typescript.
 - Preferred UI toolkits:
-  - PrimeVue: https://primevue.org/cdn/
   - shadcn/vue: https://github.com/unovue/shadcn-vue (docs: https://www.shadcn-vue.com/docs/installation/vite.html)
+  - PrimeVue: https://primevue.org/cdn/ (deprecated in favour of shadcn/vue)
 
