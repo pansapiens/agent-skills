@@ -1,0 +1,318 @@
+---
+title: "Ensembl vs NCBI RefSeq genome annotation comparison"
+subtitle: "Gene models, biotypes, and transcript structure for the same assembly"
+format:
+  html:
+    toc: true
+    code-fold: true
+    embed-resources: true
+    fig-width: 9
+    fig-height: 4.5
+params:
+  gca_accession: "GCA_016772045.2"   # GenBank/Ensembl assembly accession
+  gcf_accession: "GCF_016772045.2"   # RefSeq/NCBI assembly accession
+  workdir: "data"                    # where downloaded annotation files are cached
+  overwrite_downloads: false
+jupyter: python3
+execute:
+  cache: true
+---
+
+## What this notebook does
+
+This notebook downloads the **Ensembl** and **NCBI RefSeq** gene annotations
+for one genome assembly (identified by its GenBank `GCA_...` and RefSeq
+`GCF_...` accessions) and quantifies how the two annotation sets differ:
+gene counts, biotype composition (protein-coding / lncRNA / pseudogene /
+small RNA classes), isoform (transcript) complexity, exon structure, and
+chromosome/scaffold coverage.
+
+**To repeat this analysis for a different organism**, change `gca_accession`
+and `gcf_accession` in the YAML front-matter (or pass
+`quarto render annotation_compare.qmd -P gca_accession:GCA_xxx -P
+gcf_accession:GCF_xxx`) — both accessions must refer to the *same* assembly
+(the RefSeq accession is normally the GenBank one with `GCA`→`GCF`, same
+version suffix; confirm on the assembly's NCBI Datasets page). Everything
+else is derived automatically: this notebook resolves the correct Ensembl
+release and NCBI RefSeq annotation-release directory from the accessions
+alone, so no species-specific paths need to be hand-edited.
+
+```{python}
+#| label: setup
+#| code-summary: imports and pipeline execution
+import sys, pickle, os
+sys.path.insert(0, ".")
+import annotation_compare as ac
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+GCA = params["gca_accession"] if "params" in dir() else "GCA_016772045.2"
+GCF = params["gcf_accession"] if "params" in dir() else "GCF_016772045.2"
+WORKDIR = params["workdir"] if "params" in dir() else "data"
+OVERWRITE = params.get("overwrite_downloads", False) if "params" in dir() else False
+
+cache_path = os.path.join(WORKDIR, f"pipeline_result_{GCA}_{GCF}.pkl")
+if os.path.exists(cache_path) and not OVERWRITE:
+    with open(cache_path, "rb") as fh:
+        result = pickle.load(fh)
+else:
+    result = ac.run_pipeline(GCA, GCF, workdir=WORKDIR, overwrite=OVERWRITE)
+    os.makedirs(WORKDIR, exist_ok=True)
+    with open(cache_path, "wb") as fh:
+        pickle.dump(result, fh, protocol=pickle.HIGHEST_PROTOCOL)
+
+ens, ncbi = result["ensembl"], result["ncbi"]
+ens_stats, ncbi_stats = result["ensembl_stats"], result["ncbi_stats"]
+pairs = result["overlap_pairs"]
+
+COL_ENS, COL_NCBI = "#3B7DD8", "#E07B39"
+plt.rcParams.update({"figure.dpi": 120, "savefig.dpi": 300, "axes.spines.top": False, "axes.spines.right": False})
+```
+
+## Overview
+
+```{python}
+#| label: tbl-overview
+#| tbl-cap: "Top-level counts, Ensembl vs NCBI RefSeq"
+overview = pd.DataFrame({
+    "Ensembl": [ens_stats["n_genes"], ens_stats["n_transcripts"], ens_stats["n_exons"],
+                ens_stats["n_chromosomes_scaffolds"], round(ens_stats["transcripts_per_gene_mean"], 2),
+                ens_stats["transcripts_per_gene_max"], round(ens_stats["exons_per_transcript_mean"], 2)],
+    "NCBI RefSeq": [ncbi_stats["n_genes"], ncbi_stats["n_transcripts"], ncbi_stats["n_exons"],
+                     ncbi_stats["n_chromosomes_scaffolds"], round(ncbi_stats["transcripts_per_gene_mean"], 2),
+                     ncbi_stats["transcripts_per_gene_max"], round(ncbi_stats["exons_per_transcript_mean"], 2)],
+}, index=["Genes", "Transcripts", "Exons (feature rows)", "Chromosomes/scaffolds with \u22651 gene",
+          "Mean transcripts/gene", "Max transcripts/gene", "Mean exons/transcript"])
+overview
+```
+
+`r params$gca_accession` is annotated by Ensembl as **`r result["ensembl_source"].assembly_name`**
+(release `r result["ensembl_source"].release`) and by NCBI as
+**`r result["ncbi_source"].release`**.
+
+## Gene biotype composition
+
+```{python}
+#| label: fig-biotypes
+#| fig-cap: "Gene counts by normalized biotype (log scale), and the fate of each Ensembl gene against the NCBI RefSeq gene set."
+biotype_order = ["protein_coding","lncRNA","pseudogene","tRNA","snRNA","miRNA","snoRNA","IG_TR_segment","rRNA","other_ncRNA"]
+disp = {"protein_coding":"Protein-coding","lncRNA":"lncRNA","pseudogene":"Pseudogene","tRNA":"tRNA",
+        "snRNA":"snRNA","miRNA":"miRNA","snoRNA":"snoRNA","IG_TR_segment":"IG/TR segment",
+        "rRNA":"rRNA","other_ncRNA":"Other ncRNA"}
+ens_c = ens.genes["biotype_norm"].value_counts().reindex(biotype_order, fill_value=0)
+ncbi_c = ncbi.genes["biotype_norm"].value_counts().reindex(biotype_order, fill_value=0)
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 5.2))
+ax = axes[0]
+y = np.arange(len(biotype_order))[::-1]
+for yy, bt in zip(y, biotype_order):
+    e, n = ens_c[bt], ncbi_c[bt]
+    ax.plot([max(min(e,n),1), max(max(e,n),1)], [yy, yy], color="0.7", lw=1.5, zorder=1)
+    ax.scatter([max(e,1)], [yy], color=COL_ENS, s=50, zorder=3, label="Ensembl" if yy==y[0] else None)
+    ax.scatter([max(n,1)], [yy], color=COL_NCBI, s=50, zorder=3, label="NCBI RefSeq" if yy==y[0] else None)
+ax.set_xscale("log"); ax.set_yticks(y); ax.set_yticklabels([disp[b] for b in biotype_order])
+ax.set_xlabel("Gene count (log scale)"); ax.legend(frameon=False, loc="lower right")
+ax.set_title("Gene counts by biotype", loc="left")
+
+ax2 = axes[1]
+plot_bts = [b for b in ["protein_coding","lncRNA","pseudogene","miRNA","snRNA","snoRNA"] if ens_c[b] > 0 or ncbi_c[b] > 0]
+comp = ens.genes[ens.genes.biotype_norm.isin(plot_bts)].groupby(["biotype_norm","fate_vs_other"]).size().unstack(fill_value=0)
+comp = comp.reindex(plot_bts).fillna(0)
+comp_pct = comp.div(comp.sum(axis=1), axis=0) * 100
+cats = ["concordant","discordant","unique"]
+cat_labels = {"concordant":"Same biotype in NCBI","discordant":"Overlaps NCBI, different biotype","unique":"No NCBI overlap"}
+colors = ["#3B7DD8","#F2B84B","#B0B0B0"]
+bottom = np.zeros(len(plot_bts)); xpos = np.arange(len(plot_bts))
+for cat, c in zip(cats, colors):
+    vals = comp_pct[cat].values if cat in comp_pct else np.zeros(len(plot_bts))
+    ax2.bar(xpos, vals, bottom=bottom, color=c, label=cat_labels[cat], width=0.65)
+    bottom += vals
+ax2.set_xticks(xpos); ax2.set_xticklabels([disp[b] for b in plot_bts], rotation=30, ha="right")
+ax2.set_ylabel("% of Ensembl genes"); ax2.set_title("Fate of Ensembl genes vs NCBI RefSeq", loc="left")
+ax2.legend(frameon=False, loc="upper left", bbox_to_anchor=(0, -0.35), fontsize=8)
+fig.subplots_adjust(bottom=0.38, wspace=0.35)
+fig.tight_layout()
+fig
+```
+
+## Isoform (transcript) complexity
+
+```{python}
+#| label: fig-isoforms
+#| fig-cap: "Transcripts-per-gene for 1:1-matched protein-coding loci, and single-exon transcript fraction by biotype."
+tx_ens2 = ens.transcripts.merge(ens.genes[["gene_id","biotype_norm"]], on="gene_id", how="left")
+tx_ncbi2 = ncbi.transcripts.merge(ncbi.genes[["gene_id","biotype_norm"]], on="gene_id", how="left")
+exon_ct_ens = ens.exons.groupby("transcript_id").size().rename("n_exons")
+exon_ct_ncbi = ncbi.exons.groupby("transcript_id").size().rename("n_exons")
+tx_ens2 = tx_ens2.merge(exon_ct_ens, on="transcript_id", how="left")
+tx_ncbi2 = tx_ncbi2.merge(exon_ct_ncbi, on="transcript_id", how="left")
+
+pc = pairs.copy()
+pc["ens_biotype"] = ens.genes.loc[pc.a_idx, "biotype_norm"].values
+pc["ncbi_biotype"] = ncbi.genes.loc[pc.b_idx, "biotype_norm"].values
+pc["ens_start"] = ens.genes.loc[pc.a_idx, "start"].values; pc["ens_end"] = ens.genes.loc[pc.a_idx, "end"].values
+pc["ncbi_start"] = ncbi.genes.loc[pc.b_idx, "start"].values; pc["ncbi_end"] = ncbi.genes.loc[pc.b_idx, "end"].values
+ov = (np.minimum(pc.ens_end, pc.ncbi_end) - np.maximum(pc.ens_start, pc.ncbi_start) + 1).clip(lower=0)
+short = np.minimum(pc.ens_end - pc.ens_start + 1, pc.ncbi_end - pc.ncbi_start + 1)
+pc["overlap_frac"] = ov / short
+pc["ens_gene_id"] = ens.genes.loc[pc.a_idx, "gene_id"].values
+pc["ncbi_gene_id"] = ncbi.genes.loc[pc.b_idx, "gene_id"].values
+
+pc_matches = pc[(pc.ens_biotype=="protein_coding") & (pc.ncbi_biotype=="protein_coding") & (pc.overlap_frac>0.8)]
+pc_matches = pc_matches.sort_values("overlap_frac", ascending=False).drop_duplicates("a_idx").drop_duplicates("b_idx")
+tpg_ens_map = ens.transcripts.groupby("gene_id").size().to_dict()
+tpg_ncbi_map = ncbi.transcripts.groupby("gene_id").size().to_dict()
+pc_matches = pc_matches.assign(
+    ens_ntx=pc_matches.ens_gene_id.map(tpg_ens_map).fillna(0).astype(int),
+    ncbi_ntx=pc_matches.ncbi_gene_id.map(tpg_ncbi_map).fillna(0).astype(int),
+)
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
+ax = axes[0]
+cap = 10
+bins = np.arange(0.5, cap+1.5, 1)
+ax.hist(pc_matches.ens_ntx.clip(upper=cap), bins=bins, alpha=0.75, color=COL_ENS, label="Ensembl", density=True)
+ax.hist(pc_matches.ncbi_ntx.clip(upper=cap), bins=bins, alpha=0.55, color=COL_NCBI, label="NCBI RefSeq", density=True)
+ax.set_xlim(0.5, cap+0.5); ax.set_xticks(range(1, cap+1))
+ax.set_xticklabels([str(x) for x in range(1, cap)] + [f"\u2265{cap}"])
+ax.set_xlabel(f"Transcripts per gene (n={len(pc_matches):,} matched genes)")
+ax.set_ylabel("Fraction of genes"); ax.legend(frameon=False)
+ax.set_title("Isoforms per gene, matched protein-coding loci", loc="left")
+
+ax2 = axes[1]
+bts_plot = [b for b in ["protein_coding","lncRNA","pseudogene","IG_TR_segment"] if b in tx_ens2.biotype_norm.values]
+frac_ens = tx_ens2.groupby("biotype_norm")["n_exons"].apply(lambda s: (s==1).mean()*100).reindex(bts_plot)
+frac_ncbi = tx_ncbi2.groupby("biotype_norm")["n_exons"].apply(lambda s: (s==1).mean()*100).reindex(bts_plot)
+xpos2 = np.arange(len(bts_plot)); w = 0.35
+ax2.bar(xpos2-w/2, frac_ens.values, width=w, color=COL_ENS, label="Ensembl")
+ax2.bar(xpos2+w/2, frac_ncbi.values, width=w, color=COL_NCBI, label="NCBI RefSeq")
+ax2.set_xticks(xpos2); ax2.set_xticklabels([disp.get(b,b) for b in bts_plot], rotation=20, ha="right")
+ax2.set_ylabel("% single-exon transcripts"); ax2.legend(frameon=False)
+ax2.set_title("Single-exon transcript fraction by biotype", loc="left")
+fig.tight_layout()
+fig
+```
+
+## Chromosome / scaffold coverage
+
+```{python}
+#| label: tbl-chroms
+report = result["assembly_report"]
+n_assembled = (report["Sequence-Role"]=="assembled-molecule").sum()
+n_scaffold = (report["Sequence-Role"]=="unplaced-scaffold").sum()
+pd.DataFrame({
+    "metric": ["Assembled chromosomes (report)", "Unplaced scaffolds (report)",
+               "Ensembl: genes on unplaced scaffolds", "NCBI: genes on unplaced scaffolds"],
+    "value": [n_assembled, n_scaffold,
+              int((ens.genes["seqid"].isin(report.loc[report["Sequence-Role"]=="unplaced-scaffold","GenBank-Accn"])).sum()),
+              int(ncbi.genes["seqid"].map(result["chrom_map"]).isna().sum() + 0)],
+})
+```
+
+Both annotation providers are checked against the same NCBI assembly report,
+so a difference here would flag a chromosome/haplotype present in one
+annotation build but not the other (e.g. a provider still running on an
+older assembly patch, or a sex chromosome/organelle omitted by one
+pipeline). For this assembly the two annotations cover the identical set of
+sequences.
+
+## Worked examples: biotype disagreements on the same locus
+
+```{python}
+#| label: tbl-examples
+hc = pc[pc.overlap_frac > 0.5]
+disagree = hc[hc.ens_biotype != hc.ncbi_biotype]
+top_combo = disagree.groupby(["ens_biotype","ncbi_biotype"]).size().sort_values(ascending=False)
+top_combo.head(10).rename("n_loci").reset_index()
+```
+
+```{python}
+#| label: tbl-example-genes
+example = disagree[(disagree.ens_biotype=="lncRNA") & (disagree.ncbi_biotype=="protein_coding")]
+example[["ens_gene_id","ncbi_gene_id","overlap_frac"]].head(10).reset_index(drop=True)
+```
+
+A table of gene-ID pairs shows THAT the two providers disagree; the two diagrams
+below show WHAT the disagreement looks like at one real, auto-selected locus each
+(never hand-picked/hardcoded — `pick_example_region_locus`/`pick_example_isoform_locus`
+select from this organism's own data, so they work unmodified for any GCA/GCF pair).
+
+```{python}
+#| label: fig-region-example
+#| fig-cap: "Region-level worked example: Ensembl gene calls (top) vs NCBI RefSeq gene calls (bottom) at a locus where several Ensembl genes disagree-overlap one NCBI gene."
+region = ac.pick_example_region_locus(result)
+if region is not None:
+    ac.plot_region_comparison(
+        region["ens_region"], region["ncbi_region"],
+        ens.transcripts, ens.exons, ncbi.transcripts, ncbi.exons,
+        region["xmin"], region["xmax"], chrom_label=f"Chromosome {region['chrom_ens']}",
+        ens_release_label=result["ensembl_source"].release,
+        ncbi_release_label=result["ncbi_source"].release,
+        suptitle=f"{region['ncbi_gene_id']} locus: nested/disagreeing gene calls",
+        savepath="region_example.png",
+    )
+    from IPython.display import Image, display
+    display(Image("region_example.png"))
+else:
+    print("No region-level example found in the default cluster-size range (3-15 genes); "
+          "widen min_cluster/max_cluster in pick_example_region_locus() and re-run.")
+```
+
+```{python}
+#| label: fig-isoform-example
+#| fig-cap: "Gene-level worked example: every transcript model of one matched protein-coding gene, Ensembl (top) vs NCBI RefSeq (bottom)."
+isoform = ac.pick_example_isoform_locus(result)
+if isoform is not None:
+    ac.plot_isoform_comparison(
+        isoform["ens_gene_id"], isoform["ncbi_gene_id"],
+        isoform["ens_gene_row"], isoform["ncbi_gene_row"],
+        ens.transcripts, ens.exons, ncbi.transcripts, ncbi.exons,
+        ens_label="Ensembl", ncbi_label="NCBI RefSeq",
+        chrom_label=f"Chromosome {isoform['ens_gene_row'].seqid}",
+        suptitle=f"{isoform['ens_gene_id']}/{isoform['ncbi_gene_id']}: "
+                 f"{isoform['ens_ntx']} vs {isoform['ncbi_ntx']} transcript models",
+        savepath="isoform_example.png",
+    )
+    display(Image("isoform_example.png"))
+else:
+    print("No isoform-level example found in the default transcript-count range (2-6); "
+          "widen min_tx/max_tx in pick_example_isoform_locus() and re-run.")
+```
+
+## Practical implications for a differential expression / transcriptomics workflow
+
+- **Gene universe size differs substantially** (see Overview table) — this
+  changes the multiple-testing burden in a DE analysis and which genes are
+  even *available* to test.
+- **Biotype composition differs by an order of magnitude or more** for
+  several classes (lncRNA, pseudogene, tRNA in this example) — a gene set
+  enrichment or biotype-stratified analysis will disagree sharply depending
+  on annotation source.
+- **A meaningful fraction of loci overlap but disagree on biotype**
+  (protein-coding vs lncRNA vs pseudogene) — reads from the same genomic
+  region can be assigned to a "gene" with a completely different biological
+  interpretation depending on which annotation was used to build the
+  reference/index.
+- **Isoform (transcript) counts per gene differ** — a differential transcript
+  usage (DTU) analysis is sensitive to this: fewer/more isoforms per locus
+  changes both the null model and the interpretation of a hit.
+- **Chromosome/scaffold coverage should always be checked**, even when this
+  particular pair happened to match — a provider running on an older
+  assembly patch or omitting an organelle/sex chromosome is a common,
+  easy-to-miss source of "missing gene" bugs.
+
+## Reproducing this for another organism
+
+```bash
+quarto render annotation_compare.qmd \
+  -P gca_accession:GCA_XXXXXXXXX.N \
+  -P gcf_accession:GCF_XXXXXXXXX.N
+```
+
+Both accessions must be resolvable on Ensembl (main-site release or Rapid
+Release) and on the NCBI RefSeq FTP; `annotation_compare.py` raises a clear
+error naming what it could not find (and where it looked) if either lookup
+fails, most commonly because an organism has no Ensembl gene build yet, or
+NCBI has not produced a RefSeq (as opposed to GenBank-only) annotation for
+that accession.
