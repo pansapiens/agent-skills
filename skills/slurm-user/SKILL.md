@@ -6,7 +6,7 @@ compatibility: sbatch, srun, squeue, scancel, sinfo, scontrol, sacct, salloc, an
 
 # SLURM User
 
-Guide for submitting, monitoring and troubleshooting jobs on SLURM-managed HPC clusters. This covers generic SLURM usage — for cluster-specific details (partitions, storage, modules), refer to the relevant cluster skill (e.g. [M3 HPC](../m3-hpc/SKILL.md)).
+Guide for submitting, monitoring and troubleshooting jobs on SLURM-managed HPC clusters. This covers generic SLURM usage — for cluster-specific details (partitions, storage, modules), refer to the relevant cluster skill (e.g. [M3 HPC](../m3-hpc/SKILL.md), [MLeRP HPC](../mlerp-hpc/SKILL.md)).
 
 ## When to Use This Skill
 
