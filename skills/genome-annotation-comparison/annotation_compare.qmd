@@ -9,6 +9,11 @@ format:
     fig-width: 9
     fig-height: 4.5
 params:
+  # NOTE (Quarto <1.4): neither -P values nor these YAML params are injected
+  # into the Jupyter kernel; the setup cell falls back to the defaults below.
+  # To run for another organism on Quarto <1.4, edit BOTH this block and the
+  # setup-cell fallbacks. On Quarto >=1.4, `quarto render -P gca_accession:...
+  # -P gcf_accession:...` works as documented in the last section.
   gca_accession: "GCA_016772045.2"   # GenBank/Ensembl assembly accession
   gcf_accession: "GCF_016772045.2"   # RefSeq/NCBI assembly accession
   workdir: "data"                    # where downloaded annotation files are cached
@@ -67,7 +72,11 @@ ens_stats, ncbi_stats = result["ensembl_stats"], result["ncbi_stats"]
 pairs = result["overlap_pairs"]
 
 COL_ENS, COL_NCBI = "#3B7DD8", "#E07B39"
-plt.rcParams.update({"figure.dpi": 120, "savefig.dpi": 300, "axes.spines.top": False, "axes.spines.right": False})
+try:  # figure-style skill: publication-grade mechanics for deliverable figures
+    import figure_style
+    figure_style.apply_figure_style(sizes=(8, 7, 6))
+except ImportError:
+    plt.rcParams.update({"figure.dpi": 120, "savefig.dpi": 300, "axes.spines.top": False, "axes.spines.right": False})
 ```
 
 ## Overview
@@ -84,12 +93,35 @@ overview = pd.DataFrame({
                      ncbi_stats["transcripts_per_gene_max"], round(ncbi_stats["exons_per_transcript_mean"], 2)],
 }, index=["Genes", "Transcripts", "Exons (feature rows)", "Chromosomes/scaffolds with \u22651 gene",
           "Mean transcripts/gene", "Max transcripts/gene", "Mean exons/transcript"])
-overview
+# integer-valued cells must not render as floats (a mixed int/float column would
+# coerce counts to e.g. 78348.0); format counts with thousands separators, means at 2 dp
+fmt = lambda v: f"{v:,}" if float(v).is_integer() else f"{v:,.2f}"
+overview.map(fmt)
 ```
 
-`r params$gca_accession` is annotated by Ensembl as **`r result["ensembl_source"].assembly_name`**
-(release `r result["ensembl_source"].release`) and by NCBI as
-**`r result["ncbi_source"].release`**.
+```{python}
+#| label: ovr-sources
+import gzip
+ncbi_rel, ncbi_date = result["ncbi_source"].release, ""
+try:
+    with gzip.open(os.path.join(WORKDIR, "ncbi.gtf.gz"), "rt") as f:
+        for line in f:
+            if line.startswith("#!annotation-source"):
+                ncbi_rel = line.strip().split("annotation-source ")[-1]
+            elif line.startswith("#!annotation-date"):
+                ncbi_date = line.strip().split("annotation-date ")[-1]
+            if ncbi_rel != result["ncbi_source"].release and ncbi_date:
+                break
+except Exception:
+    pass
+from IPython.display import Markdown
+display(Markdown(
+    f"`{GCA}` / `{GCF}` is annotated by Ensembl as "
+    f"**{result['ensembl_source'].assembly_name}, release {result['ensembl_source'].release}** "
+    f"and by NCBI as **{ncbi_rel}**"
+    + (f" (annotation date {ncbi_date})." if ncbi_date else ".")
+))
+```
 
 ## Gene biotype composition
 
@@ -133,7 +165,8 @@ ax2.set_ylabel("% of Ensembl genes"); ax2.set_title("Fate of Ensembl genes vs NC
 ax2.legend(frameon=False, loc="upper left", bbox_to_anchor=(0, -0.35), fontsize=8)
 fig.subplots_adjust(bottom=0.38, wspace=0.35)
 fig.tight_layout()
-fig
+plt.show()  # NOT a trailing `fig`: on Quarto <1.4 a last-expr Figure splits into
+#           # subfigures, duplicating the figure and breaking its caption
 ```
 
 ## Isoform (transcript) complexity
@@ -191,20 +224,21 @@ ax2.set_xticks(xpos2); ax2.set_xticklabels([disp.get(b,b) for b in bts_plot], ro
 ax2.set_ylabel("% single-exon transcripts"); ax2.legend(frameon=False)
 ax2.set_title("Single-exon transcript fraction by biotype", loc="left")
 fig.tight_layout()
-fig
+plt.show()  # trailing `fig` breaks captions on Quarto <1.4 — see fig-biotypes note
 ```
 
 ## Chromosome / scaffold coverage
 
 ```{python}
 #| label: tbl-chroms
+#| tbl-cap: "Assembly composition and scaffold-level annotation coverage, both providers"
 report = result["assembly_report"]
 n_assembled = (report["Sequence-Role"]=="assembled-molecule").sum()
 n_scaffold = (report["Sequence-Role"]=="unplaced-scaffold").sum()
 pd.DataFrame({
     "metric": ["Assembled chromosomes (report)", "Unplaced scaffolds (report)",
                "Ensembl: genes on unplaced scaffolds", "NCBI: genes on unplaced scaffolds"],
-    "value": [n_assembled, n_scaffold,
+    "value": [int(n_assembled), int(n_scaffold),
               int((ens.genes["seqid"].isin(report.loc[report["Sequence-Role"]=="unplaced-scaffold","GenBank-Accn"])).sum()),
               int(ncbi.genes["seqid"].map(result["chrom_map"]).isna().sum() + 0)],
 })
@@ -221,6 +255,7 @@ sequences.
 
 ```{python}
 #| label: tbl-examples
+#| tbl-cap: "Most common biotype-disagreement combinations at overlapping loci (overlap fraction > 0.5)"
 hc = pc[pc.overlap_frac > 0.5]
 disagree = hc[hc.ens_biotype != hc.ncbi_biotype]
 top_combo = disagree.groupby(["ens_biotype","ncbi_biotype"]).size().sort_values(ascending=False)
@@ -229,6 +264,7 @@ top_combo.head(10).rename("n_loci").reset_index()
 
 ```{python}
 #| label: tbl-example-genes
+#| tbl-cap: "Loci where Ensembl calls a lncRNA and NCBI a protein-coding gene (top 10 by overlap)"
 example = disagree[(disagree.ens_biotype=="lncRNA") & (disagree.ncbi_biotype=="protein_coding")]
 example[["ens_gene_id","ncbi_gene_id","overlap_frac"]].head(10).reset_index(drop=True)
 ```
@@ -309,6 +345,11 @@ quarto render annotation_compare.qmd \
   -P gca_accession:GCA_XXXXXXXXX.N \
   -P gcf_accession:GCF_XXXXXXXXX.N
 ```
+
+(On Quarto ≥1.4, `-P` values are injected into the Jupyter kernel; on
+older versions — e.g. 1.3.x — neither `-P` nor YAML `params:` reach the
+kernel, so edit the fallback defaults in the YAML and the setup cell
+instead.)
 
 Both accessions must be resolvable on Ensembl (main-site release or Rapid
 Release) and on the NCBI RefSeq FTP; `annotation_compare.py` raises a clear
