@@ -104,7 +104,11 @@ labels. Labels have **no colon**. `rem` starts a comment.
   arrays (except ROM `data` tables), no strings, no floats.
 - `temp1`–`temp6` are scratch — clobbered by many commands.
 - Default ROM 4K; `set romsize 8k`/`16k`/`32k`... for bankswitched games
-  (see kernels-and-memory.md).
+  (see kernels-and-memory.md). **64k is the ceiling** - there is no
+  128k/512k romsize, so a bigger cartridge means leaving bB behind.
+- A `data` table is only readable **from the bank it was written in**.
+  Sprite graphics and pfcolors data are placed automatically (last bank);
+  plain `data` is not.
 - Game logic between drawscreens: ~2700 cycles / 2 ms. Long loops make the
   screen roll.
 
@@ -120,13 +124,28 @@ labels. Labels have **no colon**. `rem` starts a comment.
   luminance values ($02–$0E). Not RGB.
 - Sprites are black by default — invisible on the default black background
   until you set their color.
+- **Sprite data is upside down:** the first line of a `player0:`/`player1:`
+  block is the sprite's **bottom** row, and `player0color:`/`player1color:`
+  tables are in the same bottom-first order. Write them the way they look
+  and your sprite renders inverted. Corollary: once they are authored
+  bottom-first they are right, so an inverted sprite after that is a
+  different bug - do not add a reversal pass, it inverts everything.
+- **`pfcolors` is offset by one row:** playfield row `r` takes entry
+  `r + 1`, and each row's top two scanlines take entry `r`. Emit 12
+  entries with the first colour repeated (`c0, c0, c1, ... c10`).
 
 **Movement & coordinates (standard kernel)**
 - player0x/player1x: usable 1–159; player0y/player1y: usable 1–88.
   `x = x + 1` moves ~1 pixel per frame; faster = bigger steps or 8.8
   fixed point (dim a.b + `include fixed_point_math.asm`) for sub-pixel
   smooth motion.
-- Playfield grid: x 0–31, y 0–11.
+- Playfield grid: x 0–31, y 0–11 (**row 11 is off screen**; only 0-10 show).
+- To line sprites up with playfield cells, use the measured mapping in
+  sprites.md rather than guessing: a sprite's **last** scanline is
+  `2*y + 9` (y anchors the bottom, whatever the sprite's height), its
+  edges are `x-1` and `x+6`, playfield row `r` spans scanlines
+  `9+16r .. 24+16r`, and column `c` spans x `16+4c .. 19+4c`. So a sprite
+  stands on row `r` at `y = 8*r`, and the cell under its feet is `y/8`.
 
 **Syntax that differs from BASIC**
 - Labels: no colon. `mylabel` not `mylabel:`
@@ -143,6 +162,10 @@ labels. Labels have **no colon**. `rem` starts a comment.
   pad index 0 with a do-nothing label.
 - One-line `:` separators exist but keep them out of if-then lines except
   carefully (see flow-control.md).
+- `dim` can only alias a whole variable: `dim _Flag = a{0}` fails with
+  `Not enough args passed to Macro` from a generated include. Alias the
+  byte and write `a{0}` at each use. A bit can only be assigned a literal
+  0/1 or another bit — `a{0} = table[i]` emits `AND #65536`.
 - `set smartbranching on` always — prevents "branch out of range" errors.
 - `gosub`/`return` nesting: max ~5 levels deep (6 crashes; stack limit).
 - Random: `rand` (0–255, changes every call), ranges via `rand & 15`
@@ -257,3 +280,72 @@ shell until killed. `timeout` guarantees a hung GUI can't stall the agent.
 - When output must be verified but no emulator is available: compile
   success + ROM size (power of 2, boot bytes `78 D8` for standard kernel)
   is the practical check. Never ship a .bas that hasn't compiled.
+
+## Bankswitched-game bug catalogue (from 117-commit SMB project)
+
+Discovered building an 8-level Super Mario Bros demake in 32K. Each
+entry was empirically confirmed — some cost hours. Violating these
+produces code that **compiles cleanly** and then fails at runtime.
+
+1. **Never `goto` to a label inside a `for-next` loop.** The generated
+   branch table corrupts the loop's return path — execution escapes to
+   un-assembled ROM (observed: PC at an address with no code, game
+   hangs, screen goes black). The goto-free pattern is safe: pairs of
+   `if cond then statement` inside the for-next, with no labels.
+   Proof: `for j = 0 to 31 : if u{0} then pfpixel j 0 on : next` runs
+   millions of times in the shipped game. The equivalent with a
+   `goto __skip` inside = wild jump.
+
+2. **Bank 8 is broken for cross-bank gosubs AND table reads.** bB's
+   trampoline doesn't generate for bank 8 targets. Data placed in bank 8
+   resolves to wrong addresses when read from other banks. Bank 8 is
+   kernel-only — put ALL user code and data in banks 1–7.
+
+3. **Deleting a `bank N` statement renumbers every subsequent bank.**
+   If you remove `bank 3` to relocate code, the compiler silently maps
+   what was bank 4 to bank 3, etc. — every `gosub X bank4` now targets
+   the wrong code. Always replace the statement with a stub, never
+   delete it.
+
+4. **`if a then b : c` — statement c is unconditional.** The colon
+   extends past the if. `if x = 5 then _gstate = 3 : _sfx = 1` plays
+   the sfx every frame regardless of x. Flatten to separate lines or
+   use if/goto pairs.
+
+5. **Data tables must be in the same bank as the reading code.** A
+   `for i = 0 to N : if _table[i] = x ...` in bank 4 reading a table
+   in bank 2 silently reads garbage (wrong address space). This is
+   absolute — no cross-bank table access exists in bB.
+
+6. **`def` bit aliases share the parent variable.** If `dim _flags = e`
+   and `def _lvl2 = e{5}`, then `_duck = 0` (another e{5} alias) clears
+   your level flag. Audit ALL bit definitions for shared parent vars.
+
+7. **Signed/unsigned comparison confusion in movement clamps.**
+   `if _vyi > 5` clamps 252 (= -4) to 5 — breaking upward velocity.
+   Use bit tests for sign: `if _vyi{7}` = negative, `if !_vyi{7}` =
+   positive. Only compare magnitudes after confirming sign.
+
+8. **The gopher2600 debugger's `PEEK` reads kernel scratch mid-frame**
+   for player0x/player0y and TIA registers. A PEEK of player0x at a
+   frame boundary can show stale/garbage data. Verify positions from
+   SCREENSHOTs, not position peeks, when values look impossible.
+
+9. **pfpixel/pfread clobber temp1–temp6.** Never keep loop counters or
+   computed values in temps across a pfpixel call. Recompute after,
+   or store in a user variable (a–z).
+
+10. **pfscroll's injected column needs direct var writes.** After
+    `pfscroll left`, the incoming column's bits are set via
+    `varN = varN | 128` (or `& 127` to clear) — NOT via pfpixel, which
+    would work but is ~40 bytes slower per column.
+
+11. **`set tv pal60` compiles byte-identical to `set tv pal`.** The
+    50/60Hz distinction is handled by the console/flash cart at runtime.
+    Ship one PAL ROM for both.
+
+12. **The `dim` and `def` statement count affects RAM allocation.**
+    Every `def` creates a bit alias; every `dim` a byte alias. With all
+    26 vars used (a–z), adding aliases for existing vars is free but
+    new `dim` entries for unused letters will fail at compile time
+    ("no more variables").
