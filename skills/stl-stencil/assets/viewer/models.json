@@ -1,0 +1,8 @@
+{
+  "title": "Stencil",
+  "bed": 220,
+  "models": [
+    { "label": "Bridged", "file": "../out_bridged.stl" },
+    { "label": "Loose",   "file": "../out_loose.stl" }
+  ]
+}

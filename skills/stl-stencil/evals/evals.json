@@ -1,0 +1,65 @@
+{
+  "skill_name": "stl-stencil",
+  "evals": [
+    {
+      "id": 0,
+      "name": "svg-strokes-and-clones",
+      "prompt": "hey so i've got this radiation trefoil svg at ~/projects/agent-skills/skills/stl-stencil-workspace/inputs/trefoil.svg and i want to spray paint it onto the lid of the parts bin at work. can you turn it into something i can print on my ender 3 and use as a stencil? about 13cm across. as thin as you can get away with, im using rattlecan enamel",
+      "expected_output": "A watertight STL of a ~130mm circular stencil, roughly 1mm thick, with the trefoil as cut-outs. The SVG uses a stroked circle and two <use> clones, so it must be flattened before OpenSCAD can import it - an unflattened import silently yields a blank disc. The plate inside the outer ring is an island and needs bridging (or a loose variant offered).",
+      "files": [
+        "inputs/trefoil.svg"
+      ],
+      "assertions": [
+        "Produced at least one STL file",
+        "Every STL is watertight (zero non-manifold edges)",
+        "Stencil plate measures 125-135 mm across",
+        "Plate is between 0.6 and 1.5 mm thick",
+        "The trefoil is actually cut out of the plate, not a blank disc",
+        "The primary STL is a single connected body",
+        "Flattened the SVG (stroke-to-path, clone expansion) before importing it",
+        "Ties pass over the cut-outs, leaving the painted artwork unbroken",
+        "Offers both a held-together and a loose/unbridged variant"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "letterform-counters",
+      "prompt": "i printed a stencil of the word BOA last night and when i popped it off the bed the insides of the B and the O and the A were just loose bits rattling around on the plate. obviously i did something wrong. the svg is at ~/projects/agent-skills/skills/stl-stencil-workspace/inputs/letters.svg. can you make me one that actually holds together? about 18cm wide would suit the panel im painting",
+      "expected_output": "A stencil STL where all four letter counters (two in B, one in O, one in A) are held to the frame. Bridged version must come out as a single connected body. Should explain that the loose bits are islands and that this is the expected failure, not user error.",
+      "files": [
+        "inputs/letters.svg"
+      ],
+      "assertions": [
+        "Produced at least one STL file",
+        "Every STL is watertight (zero non-manifold edges)",
+        "Stencil plate measures 170-190 mm wide",
+        "All three letters are cut out, with their counters present",
+        "The primary STL is a single connected body, so all four counters are held",
+        "Explains the loose pieces are islands inherent to the geometry, not a printing mistake",
+        "Ties pass over the cut-outs, leaving the painted letters unbroken",
+        "Offers both a held-together and a loose/unbridged variant"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "stl-multi-island-chained",
+      "prompt": "got handed a badge design as an stl at ~/projects/agent-skills/skills/stl-stencil-workspace/inputs/badge.stl - it's already extruded, 6mm tall. i need it as a 1mm paint mask, 16cm diameter. heads up there are a LOT of floating bits in this one, four quadrants plus the middle. also can i see it in 3d before i commit to a 4 hour print?",
+      "expected_output": "A 160mm stencil from the STL via projection(). Five islands: four annulus quadrants plus the inner disc. The inner disc is not adjacent to the rim, so bridges must be chained (rim -> quadrant -> inner disc). Bridged STL must be one body. Should also stand up the three.js viewer and confirm it renders.",
+      "files": [
+        "inputs/badge.stl"
+      ],
+      "assertions": [
+        "Produced at least one STL file",
+        "Every STL is watertight (zero non-manifold edges)",
+        "Stencil measures 155-165 mm across",
+        "Plate is between 0.8 and 1.2 mm thick",
+        "The badge is actually cut out of the plate, not a blank disc",
+        "The primary STL is a single connected body, so all five islands are held",
+        "Bridges are chained: the inner disc reaches the rim through another island",
+        "Produced a browser viewer the user can open",
+        "Ties pass over the cut-outs, leaving the painted artwork unbroken",
+        "Offers both a held-together and a loose/unbridged variant"
+      ]
+    }
+  ]
+}

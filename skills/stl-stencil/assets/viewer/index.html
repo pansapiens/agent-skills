@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>STL viewer</title>
+<style>
+  :root { --bg: #1b1f24; --panel: #262c33; --fg: #e6e9ec; --dim: #98a2ad; --accent: #4a7ab5; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden;
+               font: 13px/1.5 system-ui, "DejaVu Sans", sans-serif; background: var(--bg); color: var(--fg); }
+  #view { position: fixed; inset: 0; }
+  #panel { position: fixed; top: 12px; left: 12px; width: 236px; padding: 12px 14px;
+           background: var(--panel); border: 1px solid #38404a; border-radius: 6px; }
+  h1 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 5px 0; }
+  .row label { flex: 1; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 5px 0; }
+  button { padding: 5px 8px; background: #323a44; color: var(--fg);
+           border: 1px solid #454f5b; border-radius: 4px; cursor: pointer; font: inherit; }
+  button:hover { background: #3c4550; }
+  button.on { background: var(--accent); border-color: var(--accent); }
+  hr { border: none; border-top: 1px solid #38404a; margin: 10px 0; }
+  #stats { white-space: pre; font-family: "DejaVu Sans Mono", monospace; font-size: 11px; color: var(--dim); }
+  #help { position: fixed; bottom: 12px; left: 12px; color: var(--dim); font-size: 11px; }
+  input[type=range] { flex: 1; }
+</style>
+</head>
+<body>
+<div id="view"></div>
+
+<div id="panel">
+  <h1 id="title">STL viewer</h1>
+  <div class="grid" id="models"></div>
+  <div class="grid">
+    <button id="b-top">Top</button>
+    <button id="b-iso">Iso</button>
+    <button id="b-under">Under</button>
+    <button id="b-front">Front</button>
+  </div>
+  <hr>
+  <div class="row"><label>Wireframe</label><input type="checkbox" id="wire"></div>
+  <div class="row"><label>Edges</label><input type="checkbox" id="edges"></div>
+  <div class="row"><label id="bedlabel">Bed</label><input type="checkbox" id="grid" checked></div>
+  <div class="row"><label>Explode</label><input type="range" id="explode" min="0" max="60" value="0"></div>
+  <hr>
+  <div id="stats">loading…</div>
+</div>
+
+<div id="help">drag: rotate &nbsp;·&nbsp; right-drag: pan &nbsp;·&nbsp; wheel: zoom</div>
+
+<script type="importmap">
+{ "imports": { "three": "./lib/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from './lib/OrbitControls.js';
+import { STLLoader } from './lib/STLLoader.js';
+
+// models.json sits next to this file and is the only thing to edit when
+// reusing the viewer on another project:
+//   { title, bed, bedLabel, models: [{ label, file }, ...] }
+const DEFAULTS = { title: 'STL viewer', bed: 220, models: [] };
+const cfg = Object.assign({}, DEFAULTS,
+  await fetch('./models.json').then(r => r.json()).catch(() => ({})));
+
+document.title = cfg.title;
+document.getElementById('title').textContent = cfg.title;
+document.getElementById('bedlabel').textContent =
+  cfg.bedLabel || `Bed ${cfg.bed} x ${cfg.bed} mm`;
+
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(innerWidth, innerHeight);
+view.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1b1f24);
+
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 1, 4000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+scene.add(new THREE.HemisphereLight(0xdfe8f2, 0x2a2f36, 2.0));
+const key = new THREE.DirectionalLight(0xffffff, 1.9); key.position.set(90, -140, 190); scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.7); fill.position.set(-140, 90, 60); scene.add(fill);
+
+// Z-up, matching OpenSCAD. The bed is drawn at cfg.bed mm with 10 mm cells.
+const BED = cfg.bed;
+const grid = new THREE.Group();
+{
+  const lines = new THREE.GridHelper(BED, Math.round(BED / 10), 0x343c45, 0x343c45);
+  lines.rotation.x = Math.PI / 2;
+  grid.add(lines);
+
+  const h = BED / 2;
+  const seg = (pts, color) => new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(...p))),
+    new THREE.LineBasicMaterial({ color }));
+
+  grid.add(seg([[-h,-h,0],[h,-h,0], [h,-h,0],[h,h,0],
+                [h,h,0],[-h,h,0], [-h,h,0],[-h,-h,0]], 0x6d7a88));   // bed edge
+  grid.add(seg([[-h,0,0],[h,0,0], [0,-h,0],[0,h,0]], 0x4d5866));     // centre cross
+}
+grid.position.z = -0.02;
+scene.add(grid);
+
+const material = new THREE.MeshStandardMaterial({
+  color: 0x4a7ab5, metalness: 0.05, roughness: 0.55,
+  side: THREE.DoubleSide, flatShading: false,
+});
+
+const group = new THREE.Group();
+scene.add(group);
+const loader = new STLLoader();
+
+// Split a merged STL into its connected bodies, so the explode slider can
+// separate the pieces of a stencil whose islands are left unbridged.
+function splitBodies(geom) {
+  const pos = geom.attributes.position;
+  const n = pos.count;                       // 3 vertices per triangle, unindexed
+  const id = new Map(); const vid = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    const k = `${pos.getX(i).toFixed(3)},${pos.getY(i).toFixed(3)},${pos.getZ(i).toFixed(3)}`;
+    if (!id.has(k)) id.set(k, id.size);
+    vid[i] = id.get(k);
+  }
+  const parent = Int32Array.from({ length: id.size }, (_, i) => i);
+  const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+  const uni = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; };
+  for (let t = 0; t < n; t += 3) { uni(vid[t], vid[t + 1]); uni(vid[t + 1], vid[t + 2]); }
+
+  const buckets = new Map();
+  for (let t = 0; t < n; t += 3) {
+    const r = find(vid[t]);
+    if (!buckets.has(r)) buckets.set(r, []);
+    buckets.get(r).push(t);
+  }
+  return [...buckets.values()].map(tris => {
+    const arr = new Float32Array(tris.length * 9);
+    tris.forEach((t, j) => { for (let k = 0; k < 3; k++) {
+      arr[j * 9 + k * 3]     = pos.getX(t + k);
+      arr[j * 9 + k * 3 + 1] = pos.getY(t + k);
+      arr[j * 9 + k * 3 + 2] = pos.getZ(t + k);
+    }});
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    g.computeVertexNormals();
+    g.computeBoundingBox();
+    return g;
+  }).sort((a, b) => b.attributes.position.count - a.attributes.position.count);
+}
+
+let bodies = [];
+
+function load(file) {
+  loader.load(file, geom => {
+    group.clear(); bodies = [];
+    const parts = splitBodies(geom);
+    let tris = 0;
+    for (const g of parts) {
+      tris += g.attributes.position.count / 3;
+      const mesh = new THREE.Mesh(g, material);
+      const centre = g.boundingBox.getCenter(new THREE.Vector3());
+      mesh.userData.dir = new THREE.Vector3(centre.x, centre.y, 0).normalize();
+      const wire = new THREE.LineSegments(
+        new THREE.EdgesGeometry(g, 25),
+        new THREE.LineBasicMaterial({ color: 0x0d1218 }));
+      wire.visible = document.getElementById('edges').checked;
+      mesh.add(wire);
+      mesh.userData.wire = wire;
+      group.add(mesh);
+      bodies.push(mesh);
+    }
+    const size = new THREE.Box3().setFromObject(group).getSize(new THREE.Vector3());
+    document.getElementById('stats').textContent =
+      `bodies    ${parts.length}\n` +
+      `triangles ${tris}\n` +
+      `size      ${size.x.toFixed(1)} x ${size.y.toFixed(1)} x ${size.z.toFixed(2)} mm`;
+    applyExplode();
+  }, undefined, () => {
+    document.getElementById('stats').textContent = `could not load\n${file}`;
+  });
+}
+
+function setView(kind) {
+  // far enough back to frame the whole bed
+  const d = (BED / 2) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.1;
+  const flat = kind === 'top' || kind === 'under';
+  if (kind === 'top')   camera.position.set(0, 0, d);
+  if (kind === 'iso')   camera.position.set(d * 0.55, -d * 0.75, d * 0.55);
+  if (kind === 'under') camera.position.set(0, 0, -d);
+  if (kind === 'front') camera.position.set(0, -d, 0);
+  camera.up.set(0, flat ? 1 : 0, flat ? 0 : 1);
+  controls.target.set(0, 0, 0);
+  controls.update();
+}
+
+function applyExplode() {
+  const amt = +document.getElementById('explode').value;
+  for (const m of bodies) m.position.copy(m.userData.dir).multiplyScalar(amt);
+}
+
+const buttons = document.getElementById('models');
+cfg.models.forEach((m, i) => {
+  const b = document.createElement('button');
+  b.textContent = m.label;
+  b.className = i === 0 ? 'on' : '';
+  b.onclick = () => {
+    for (const other of buttons.children) other.classList.toggle('on', other === b);
+    load(m.file);
+  };
+  buttons.appendChild(b);
+});
+
+document.getElementById('explode').addEventListener('input', applyExplode);
+document.getElementById('wire').addEventListener('change', e => { material.wireframe = e.target.checked; });
+document.getElementById('edges').addEventListener('change', e => {
+  for (const m of bodies) m.userData.wire.visible = e.target.checked;
+});
+document.getElementById('grid').addEventListener('change', e => { grid.visible = e.target.checked; });
+for (const k of ['top', 'iso', 'under', 'front']) document.getElementById('b-' + k).onclick = () => setView(k);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+setView('iso');
+if (cfg.models.length) load(cfg.models[0].file);
+(function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+})();
+</script>
+</body>
+</html>
