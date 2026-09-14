@@ -237,6 +237,18 @@ The score is drawn using the player objects. **COLUP0 and COLUP1 must be set dur
 
 ## Timing problems (jitter, shaking, rolling)
 
+**`vblank` used as a statement instead of a trailing block.** `vblank` is
+not "give me some vblank time here": it declares a `vblank` ... `return`
+block that must sit **outside every loop**, at the end of the program,
+and bB runs it automatically at each drawscreen. Written inline in a main
+loop it compiles cleanly and then produces wildly inconsistent frame
+lengths (350, 198, 218 scanlines on consecutive frames in one measured
+case) - which looks like a logic overrun and is not. Delete it and the
+frame goes straight back to 262. See
+`references/running-in-an-emulator.md` for the per-frame scanline check
+that makes this obvious in one run.
+
+
 Symptom: "My game jitters, shakes or rolls!"
 
 Your program spends too much time in the game loop:

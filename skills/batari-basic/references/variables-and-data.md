@@ -144,6 +144,20 @@ Critical syntax rules:
 - The number inside `{}` must be a constant 0-7, **not a variable**.
 - Flip a bit: `a{0} = !a{0}`. Copy bit to bit: `d{3} = r{4}` or `f{5} = !f{5}`.
 - Speed: `a{0} = 0` and `a{0} = 1` take 8 cycles each; flipping or bit-to-bit copy takes 23-24 cycles.
+- **`dim _Flag = a{0}` does not compile.** A dim may only alias a whole
+  variable. The `a{0}` text survives into the generated
+  `2600basic_variable_redefs.h`, where DASM reads the braces as a macro
+  argument and reports the baffling `error: Not enough args passed to
+  Macro`, pointing at a file you never wrote. Alias the byte
+  (`dim _Flags = a`) and write the bit number at every use site
+  (`_Flags{0}`), which is why the convention below puts the bit number in
+  the alias name.
+- **A bit can only be assigned a literal 0 or 1, another bit, or a
+  negated bit.** Assigning anything else - notably a data-table read like
+  `a{0} = table[i]` - is accepted by bB and compiles to nonsense: it
+  emits `LDA table / AND #65536`, and DASM stops with
+  `Value in 'and #65536' must be <$100`. Route it through a byte
+  (`temp1 = table[i] : a{0} = 0 : if temp1 <> 0 then a{0} = 1`).
 
 Use dim to make bit flags readable (include the bit number in the alias so you remember which is which):
 

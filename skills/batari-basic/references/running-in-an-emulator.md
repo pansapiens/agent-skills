@@ -144,6 +144,57 @@ HELP [CMD]            # list commands, or detail one (e.g. HELP STICK)
 QUIT                  # exit
 ```
 
+`TV FRAME` (a separate command from bare `TV`) prints the **frame you just
+finished**, as `top: 23, bottom: 242, total: 262` - see
+[Checking every frame is 262 scanlines](#checking-every-frame-is-262-scanlines).
+
+Two things the vocabulary does not do:
+
+- **`STEP FRAME` takes no repeat count.** `STEP FRAME 40` is rejected with
+  `* unrecognised argument (40) for STEP`; emit the line 40 times.
+- **`POKE <addr> <value>`** does work, and is the quickest way to jump a
+  bB game into a state that is hard to play into (`POKE 0xc0 3` to start
+  on level 4, say). Addresses come from `game.bas.symbol.txt`.
+  `POKE` plus `PEEK` also gives you something closer to a unit test than
+  a playthrough: poke an object into the exact state you want to check,
+  step, and read the variable back each frame. That is how to test a case
+  a blind input script will not reach in a thousand frames - and how to
+  tell a fix from a coincidence, by running the same poke against the ROM
+  built before it. `PEEK 0xdc 0xdd 0xde` accepts several addresses and
+  prints one `0x00dc (RAM) = 0x48` line each.
+
+#### Screenshot rows are scanline numbers
+
+In the fork, `SCREENSHOT` writes the raw TIA frame, so **PNG row `n` is
+scanline `n`** - no offset, no scaling. Every formula in
+`references/sprites.md` can therefore be checked straight off a
+screenshot: decode the PNG, find the rows where a sprite's pixels are
+lit, and compare against `2*y + 9`. Derive the mapping from a sprite
+whose `y` you control and have not changed since the last `drawscreen`,
+though: doing it from a game frame, where the object may be mid-jump,
+yields a plausible-looking offset that is wrong.
+
+#### Checking every frame is 262 scanlines
+
+A bB game whose logic overruns the frame does not crash or warn: it just
+emits a long frame, and on real hardware the picture rolls. `STEP
+SCANLINE` in a loop will find it but is painfully slow. `TV FRAME` after
+each `STEP FRAME` costs nothing:
+
+```bash
+{ for i in $(seq 1 900); do echo "STEP FRAME"; echo "TV FRAME"; done; echo QUIT; } > /tmp/run.txt
+{ sleep 1; echo "SCRIPT /tmp/run.txt"; sleep 300; echo QUIT; } \
+  | ./gopher2600 HEADLESS game.bas.bin 2>&1 \
+  | grep -o 'total: [0-9]*' | sort | uniq -c
+```
+
+262 is healthy for NTSC. Interleave `STICK`/`PANEL` lines into the same
+script so the count covers real gameplay and not just the title screen -
+the expensive frames are the ones where the game is scrolling, spawning
+or bumping something. The first handful of frames after power-on are
+always long (the setup code runs before the first `drawscreen`); ignore
+those.
+
 #### `STICK` — the first argument is a PORT, not a direction
 
 This is the single biggest time-sink in headless testing. `HELP STICK` gives

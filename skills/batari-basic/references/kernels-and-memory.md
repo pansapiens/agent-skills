@@ -252,6 +252,13 @@ Advanced feature — you can finish a game without it. 256 bytes, 100% yours (no
 
 The 2600 only addresses 4k at a time. **8k or larger uses bankswitching**: 8k = 2 banks, 16k = 4, 32k = 8, 64k = 16. The DPC+ kernel is fixed at 32k (don't declare romsize).
 
+**64k is bB's ceiling.** There is no `128k`/`256k`/`512k` romsize: the
+compiler's bankswitching scheme (F0-style, 16 x 4k) stops at 64k, so a
+project that wants a larger cartridge has to give up bB and hand-write
+the assembly and the bank hardware. Budget accordingly - 64kSC really
+means 15 usable 4k banks plus a last bank shared with the kernel, the
+sprite data and the bB library routines.
+
 Bank layout: bank 1 starts at the beginning of your code (never declare it). Begin each later bank with `bank n` (**space** between bank and number):
 
 ```bB

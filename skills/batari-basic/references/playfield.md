@@ -209,6 +209,137 @@ What each direction does and costs:
 
 **Warning:** playfield plotting **and** scrolling commands do not work with the multisprite kernel — the program may not compile, or may crash. For DPC+ scrolling, see [DPC+ pfscroll](#dpc-pfscroll).
 
+### `pfscroll left` rotates, it does not shift
+
+Column 0 is not discarded: it comes back round into column 31 (and
+`pfscroll right` moves column 31 into column 0). For a side-scroller
+that means you must overwrite the far column with the new terrain after
+every scroll, or the level repeats itself every 32 columns.
+
+With Superchip RAM the routine is also dearer than the 500 cycles above,
+because every byte has to be read from the read port and written to the
+write port instead of being shifted in place: measured at roughly **700
+cycles** for a 12-row playfield. Rolling your own is worth it if you are
+scrolling and inserting a column every frame - see
+[Scrolling and inserting in one pass](#scrolling-and-inserting-in-one-pass).
+
+### A scrolling playfield closes over your sprites
+
+In a side-scroller the playfield moves and the objects standing on it do
+not, so solid cells *arrive around* a sprite instead of in front of it.
+A sprite walking left through terrain that is streaming in from the right
+ends up inside a wall without ever having crossed its face, which means
+a "is the cell ahead solid?" test never fires: it only ever looks at the
+cell the sprite is about to enter, and the sprite did not enter this one.
+
+The symptom is an object frozen inside the scenery, usually jittering,
+because the same test now finds solid terrain on both sides and flips the
+object's direction every frame.
+
+Two things are needed, not one:
+
+- the **look-ahead** test, against the cell the sprite would move into;
+- an **unstick** test, against the cell the sprite is already in. If that
+  cell is solid, move the sprite to stand on top of it. With the
+  geometry in `references/sprites.md` that is one line: if the body row
+  `y/8 - 1` reads solid, set `y = 8 * (y/8 - 1)`.
+
+One row of lift per frame is enough - terrain can only arrive one column
+at a time - and it doubles as the fix for spawning an object at the edge
+of the screen before you know what terrain will be there. Gate it on
+`frame & 1` if the extra `pfread` per object matters; two frames per row
+still clears a 3-row pipe in six frames.
+
+The same argument applies to anything else positioned in world
+coordinates while the playfield scrolls underneath it: items, the ball,
+and the player if the camera can move independently.
+
+## Playfield memory layout (standard kernel, 32 columns)
+
+Needed for any inline-asm playfield work. A row is **4 bytes** at
+`playfieldbase + 4*row`, and the bit order alternates because the TIA
+draws PF1 MSB-first and PF2 LSB-first:
+
+| byte | columns | bit for column c |
+|---|---|---|
+| `+0` (PF1 left) | 0-7 | `$80 >> c` |
+| `+1` (PF2 left) | 8-15 | `1 << (c-8)` |
+| `+2` (PF1 right) | 16-23 | `$80 >> (c-16)` |
+| `+3` (PF2 right) | 24-31 | `1 << (c-24)` |
+
+So column 0 is bit 7 of byte 0 and column 31 is bit 7 of byte 3. bB's own
+`setbyte` table (in `includes/pf_drawing.asm`) is exactly this mask per
+column, and `pfread`/`pfpixel` index it with the raw column number.
+
+PF0 is not used at this width: the 32 columns cover screen x 16-143, four
+colour clocks each.
+
+**Superchip:** `playfieldbase` (= `playfield`) is the **read** address;
+writes go 128 bytes lower, at `playfieldbase-128`. bB's own routines do
+this with `ifconst superchip`, and inline asm must too - a write to
+`playfieldbase` itself lands in the read-only mirror and is silently
+lost.
+
+### Scrolling and inserting in one pass
+
+Threading one new column in as the row shifts costs about **51 cycles per
+row** (560 for eleven rows), against roughly 890 for `pfscroll left` plus
+a separate insert pass. The trick is that the row's shift chain ends on a
+`ror` of byte 3, whose carry-in becomes column 31 - so deferring the mask
+shift to the end of the row drops the new bit exactly where it belongs:
+
+```bB
+   rem  _mlo holds rows 0-7 with row 0 in bit 7.  Repeat per row, with
+   rem  b = 4*row, reading at playfieldbase and writing 128 lower.
+   asm
+   lda playfieldbase+3
+   lsr                          ; C = column 24
+   lda playfieldbase+2
+   rol
+   sta playfieldbase+2-128
+   lda playfieldbase+1
+   ror
+   sta playfieldbase+1-128
+   lda playfieldbase+0
+   rol
+   sta playfieldbase+0-128
+   asl _mlo                     ; C = the new column's bit for this row
+   lda playfieldbase+3
+   ror                          ; ...lands in bit 7 = column 31
+   sta playfieldbase+3-128
+end
+```
+
+### pfread without the bankswitch
+
+In a bankswitched game `pfread` lives in the last bank, so each call is a
+`BS_jsr` trampoline out and back - about **120 cycles**. The same
+arithmetic inline is about **40**, which is worth having if the main loop
+probes the playfield several times a frame (a platformer checking ground,
+walls and head clearance does it six times):
+
+```bB
+   rem  temp4 <- 0 if the cell is empty.  `pfmsk` is a 32-byte data table
+   rem  of the per-column masks above, in *this* bank.  row 0-10, col 0-31.
+   asm
+   lda _row
+   asl
+   asl
+   sta temp5
+   lda _col
+   lsr
+   lsr
+   lsr
+   clc
+   adc temp5
+   tay
+   ldx _col
+   lda playfieldbase,y
+   and pfmsk,x
+   sta temp4
+end
+```
+
 ## playfieldpos
 
 Internal system variable that controls which scanline the top playfield block starts drawing on. The scrolling routines update it automatically, so you normally don't need it unless you want to know where the playfield is — or jump it somewhere:
@@ -280,6 +411,8 @@ Top row bug and fixes:
 - With `no_blank_lines`, the top row color will be correct but the bottom row's will be wrong — use **12 colors** and make the 12th the same as the 11th.
 - With the `background` option, neither COLUPF nor in-loop `pfcolors:` works (without `no_blank_lines`) — use `COLUBK` in your main loop for the top row instead; with `no_blank_lines`+`background` you may need 12-13 colors with adjusted placement.
 - PF0 border color taint: if the bottom of your PF0 side border picks up another color, use 12 colors and repeat the 11th.
+- **Measured (bB 1.9, NTSC, `pfcolors no_blank_lines player1colors`): the table is offset by one row.** Playfield row `r` is coloured by **entry `r+1`**, and only from its third scanline - the first two scanlines of every row show entry `r`. Entry 0 is never really seen. So to colour rows 0-10 with `c0..c10`, emit twelve entries `c0, c0, c1, ... c10`: repeat the *first* colour to absorb the unused slot, instead of writing `c0..c10` plus a trailing duplicate. Get it wrong and the entire terrain is coloured one row out, which reads as "my ground is the wrong colour" and not as an off-by-one.
+- Because of that two-scanline lag, a solid cell in row `r` is capped by two lines of row `r-1`'s colour. Give the rows you never draw in the same colour as the row below and the cap vanishes; where the colours genuinely differ it looks like a rim or a grass line, which is often what you wanted anyway.
 
 **Warning:** when using pfcolors and pfheights together, you may define `pfheights:` and `pfcolors:` only **one time each**, and you must define **pfheights: first**. Also, if you enable either option but never define its block, you will probably get a compile error.
 

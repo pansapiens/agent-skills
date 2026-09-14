@@ -39,6 +39,8 @@ end
 
 - Each line is one row of the sprite, 8 pixels wide, written in binary: `%` then eight `0`/`1` digits (`%0110` style is not allowed — always all 8 bits). `1` = pixel on, `0` = off.
 - The first line in the block is the **bottom** row of the sprite — sprite data is upside down in your code.
+  Measured, not folklore: a sprite whose first three lines are `%11111111` and whose last five are a 2-pixel stalk renders as a box at the **bottom** with the stalk above it. `player0color:`/`player1color:` tables are in the same order, so the first colour is the bottom row's.
+  **The corollary matters more than the rule.** Once the data is authored bottom-first it is correct, so if a sprite still renders inverted, the data order is not the bug — look at which block the code actually executed (see the not-executed trap below), or at a generator or preprocessor that is "helpfully" reversing the rows for you. Reversing correctly-authored data to fix an apparently inverted sprite inverts every sprite in the program, and it looks like a plausible fix because the rule above is genuinely counter-intuitive.
 - Any number of rows (up to 256 total height). The block above (8 rows) is the classic 8x8 sprite.
 - The block ends with `end` on its own line, and the rows must be indented (3 spaces shown here).
 - Sprite definitions can be placed **outside the main loop** — the standard kernel keeps displaying them until you change them. (Exception: some multisprite kernel versions need player0: redefined inside the loop.)
@@ -78,6 +80,45 @@ Gotchas:
 - **Avoid player x = 0** with normal width — sprites can wrap/jump at the screen edges; Random Terrain's border-coordinates program forces x back to 1 at normal width.
 - If you widen a player with NUSIZx, the right edge shrinks: **153** (normal 8 px), **144** (double width), **128** (quadruple width).
 - Ball/missile coordinates are offset from player coordinates by about 1 pixel — align by hand (e.g. `missile0x = player0x + 4` roughly centers a missile on the sprite).
+
+### Where a sprite actually lands (measured)
+
+If you need sprites to line up with playfield cells - a platformer
+standing on blocks, say - the useful facts are not the clamp constants
+but the exact mapping. Measured with `set kernel_options player1colors
+no_blank_lines pfcolors`, `set tv ntsc`, on a raw 160x214 TIA capture
+(`cal/cal10.bas` style: an 8-row player0 and a 16-row player1 at the same
+y, with one lit playfield pixel per row):
+
+| quantity | formula |
+|---|---|
+| sprite's **last** scanline | `2*y + 9` |
+| sprite's first scanline | `2*y + 9 - 2*height + 1` |
+| sprite's left / right edge | `x - 1` / `x + 6` |
+| playfield row `r` | scanlines `9 + 16r` .. `24 + 16r` |
+| playfield column `c` | x `16 + 4c` .. `19 + 4c` |
+
+Two consequences that are easy to get backwards:
+
+- **y anchors the bottom of the sprite, whatever its height.** Give a
+  sprite twice as many rows and it grows *upward* from the same feet.
+  Handy: a tall and a short state (small and super Mario) can share one
+  y without a fix-up.
+- **Only playfield rows 0-10 exist on screen** at 11-row resolution: row
+  11 gets a single scanline at the very bottom.
+
+Combining them gives the conversions a tile-based game needs:
+
+| want | expression |
+|---|---|
+| y that stands the sprite on row `r` | `8*r` |
+| row under the sprite's feet | `y / 8` |
+| row above an 8-row sprite's head | `y / 8 - 2` (16-row: `- 3`) |
+| column under the left edge | `(x - 17) / 4` |
+| column under the right edge | `(x - 10) / 4` |
+
+A sprite standing at `y = 8r` overlaps the top scanline of row `r` by one
+line, which is invisible and keeps the arithmetic exact.
 
 ## Keeping objects on screen (edge clamping + wall collision prevention)
 

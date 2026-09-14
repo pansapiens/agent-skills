@@ -53,3 +53,6 @@ they are known-good syntax.
 Attribution: examples by Duane Alan Hahn (Random Terrain) with contributions
 from AtariAge members (batari, SeaGtGruff, RevEng, Robert M and others), and by
 the batari Basic project authors. See the headers in each file.
+- `ex_computed_collision.bas` — Data-driven collision using rule tables with the
+  goto-free for-next walk pattern. The safe alternative to pfread for complex
+  level geometry. From an 8-level SMB demake; see SKILL.md's bug catalogue #1.
