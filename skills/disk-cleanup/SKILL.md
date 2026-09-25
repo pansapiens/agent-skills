@@ -1,5 +1,5 @@
 ---
-name: understand-disk-usage
+name: disk-cleanup
 description: Investigate Linux disk space. Use for 'disk full', 'storage usage', or finding large files.
 priority: 5
 ---
