@@ -46,6 +46,11 @@ RUN apt-get install -y curl
 RUN apt-get install -y git
 ```
 
+The point of combining is to stop intermediate cruft (apt lists, build dependencies,
+extracted tarballs) being frozen into the image. It does **not** apply to payload that
+has to ship anyway: bundling several multi-GB downloads into one `RUN` just creates one
+huge, fragile blob. See [Layer Size Limits](#layer-size-limits).
+
 ## Dependency Installation and Cache Management
 
 There are two primary approaches to managing package caches:
@@ -248,6 +253,136 @@ RUN curl -L https://example.com/file.tar.gz -o /tmp/file.tar.gz \
     && tar -xzf /tmp/file.tar.gz -C /opt \
     && rm /tmp/file.tar.gz
 ```
+
+## Layer Size Limits
+
+**Keep every layer under 5 GB.** Split large downloads or installs across multiple
+`RUN` steps rather than combining them.
+
+This cuts against the usual "combine `RUN` instructions" advice, and deliberately so.
+Combining exists to stop intermediate cruft (apt lists, build deps) being frozen into
+the image. It does not apply to a payload that has to be in the final image anyway -
+there, more layers is strictly better:
+
+- **Blob transfers are not resumable within a blob.** One dropped connection
+  re-downloads the whole layer. An 8 GB layer turns a transient blip into an 8 GB
+  retry, and shows up as `error writing layer: unexpected EOF` or a stalled pull.
+- **Registries impose ceilings.** AWS ECR documents a 10 GiB maximum layer size.
+  The OCI spec sets no limit, but proxies, CDNs and gateways time out on long
+  single-blob transfers well before that.
+- **Layers pull in parallel.** One huge layer serialises the pull behind itself.
+- **Cache granularity.** Changing one download URL only invalidates its own layer.
+
+```dockerfile
+# Good: each model is its own layer, independently retryable
+RUN wget -P /models https://example.com/model-a.ckpt   # 2.5 GB
+RUN wget -P /models https://example.com/model-b.ckpt   # 2.5 GB
+RUN wget -P /models https://example.com/model-c.ckpt   # 2.8 GB
+
+# Bad: one 7.8 GB blob - a dropped connection costs all of it
+RUN wget -P /models https://example.com/model-a.ckpt \
+    && wget -P /models https://example.com/model-b.ckpt \
+    && wget -P /models https://example.com/model-c.ckpt
+```
+
+### Measuring layer size
+
+Use `scripts/check_layer_sizes.sh`, which flags anything over the threshold and exits
+non-zero so it can gate CI:
+
+```bash
+scripts/check_layer_sizes.sh myimage:latest             # local build
+scripts/check_layer_sizes.sh --remote ghcr.io/owner/image:tag
+scripts/check_layer_sizes.sh --max-gb 2 myimage:latest
+```
+
+Or directly:
+
+```bash
+# Local image: sizes plus the instruction that created each layer.
+docker history --no-trunc --format '{{.Size}}\t{{.CreatedBy}}' myimage:latest
+```
+
+**`docker history` reports UNCOMPRESSED sizes; the registry stores and transfers
+COMPRESSED blobs.** The compressed number is the one that matters for pull
+reliability, so check a pushed image against the manifest:
+
+```bash
+docker manifest inspect ghcr.io/owner/image:tag | jq '.layers[].size'
+```
+
+For a multi-arch tag that returns an image *index* with no layers of its own - resolve
+to a platform manifest first:
+
+```bash
+docker manifest inspect ghcr.io/owner/image:tag \
+  | jq -r '.manifests[] | select(.platform.architecture=="amd64") | .digest'
+docker manifest inspect ghcr.io/owner/image@sha256:<digest> | jq '.layers[].size'
+```
+
+To attribute a large layer to the build step that produced it on an image you have not
+pulled, zip the manifest's `layers` against the config blob's `history` entries, after
+dropping the ones marked `empty_layer` (metadata-only instructions like `ENV`, `ARG`,
+`LABEL` and `CMD` produce no layer). The two lists then line up one-to-one.
+
+### The `chmod -R` / `chown -R` copy-up trap
+
+**A recursive `chmod` or `chown` in its own `RUN` re-materialises every file it touches
+into that layer**, even when nothing about the file changes. overlayfs copies a file up
+on *any* `setattr`, and GNU `chmod` issues the syscall even when the mode already
+matches, so there is no "no-op" fast path.
+
+Measured with buildkit on a 150 MB payload:
+
+| Step | Layer size |
+| --- | --- |
+| create 150 MB file, `chmod` that file in the same `RUN` | 157 MB |
+| create 150 MB file, `chmod -R` the whole directory (spanning an earlier layer) | **315 MB** |
+| `chmod -R a+rX` that changes no modes at all | **157 MB** |
+| read-only `find` over the directory | **0 B** |
+
+A real case: `RUN chmod -R a+rx /models` after 8 GB of model downloads added an 8.10 GB
+layer - a byte-for-byte duplicate of the weights - taking the image from 12.6 GB to
+20.7 GB and creating the only layer over 5 GB.
+
+The same trap catches the very common "add a non-root user at the end" pattern:
+
+```dockerfile
+# Bad: doubles the size of everything under /app
+COPY . /app
+RUN chown -R app:app /app
+```
+
+**Set ownership and permissions in the same step that creates the files**, so the
+copy-up lands in the layer that already holds those bytes:
+
+```dockerfile
+# COPY: use the built-in flags, no extra layer at all
+COPY --chown=app:app --chmod=644 . /app
+
+# Downloads: scope the fix to what this step just created, via a stamp file
+RUN touch /tmp/.stamp \
+    && wget -P /models https://example.com/model-a.ckpt \
+    && find /models -newer /tmp/.stamp -exec chmod a+rX {} + \
+    && rm -f /tmp/.stamp
+
+# Creating files directly: set the mode at creation
+RUN install -m 0644 build/output.bin /opt/app/output.bin
+```
+
+If you want a guarantee that permissions are correct, verify rather than fix. `find`
+only reads, so the layer is 0 B and the build still fails loudly:
+
+```dockerfile
+RUN bad="$(find /models \( -type f ! -perm -o=r \) -o \( -type d ! -perm -o=x \))"; \
+    [ -z "$bad" ] || { echo "not world-readable:"; echo "$bad"; exit 1; }
+```
+
+**Use `a+rX`, not `a+rx`.** Capital `X` sets the execute bit on directories only (and on
+files that already have one), so data files do not end up spuriously executable.
+
+Note that `-perm -o=r` is GNU `find` syntax and is not supported by BusyBox `find` on
+Alpine; use octal `-perm` tests there, or run the check on a Debian-based stage.
 
 ## Common Patterns by Technology
 

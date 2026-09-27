@@ -143,7 +143,9 @@ CMD ["python", "main.py", "--help"]
 - **Use cache mounts** for package installs where possible (eg `--mount=type=cache,target=/root/.cache/pip`)
 - **Use `mamba`/`uv`** - Faster than conda/pip
 - **Multi-stage builds** - Use for compiled languages or when build deps aren't needed at runtime; avoid for simple interpreted apps where they add unnecessary complexity
-- **Limit layers** - Combine related `RUN` instructions with `&&`
+- **Limit layers** - Combine related `RUN` instructions with `&&`, to avoid freezing intermediate cruft into the image - but not at the cost of the layer size rule below
+- **Keep layers under 5 GB** - Split large downloads/installs across separate `RUN` steps. A blob is not resumable within itself, so a dropped connection re-fetches the whole layer; layers also pull in parallel. Verify with `scripts/check_layer_sizes.sh <image>`
+- **Never `chmod -R` / `chown -R` in a later `RUN`** - overlayfs copies a file up on any `setattr`, so a recursive chmod/chown duplicates every file it touches into that layer, even when no mode changes. Use `COPY --chown=/--chmod=`, `install -m`, or scope the fix to the files that step created. See `references/docker-best-practices.md`
 - **No unnecessary packages** - Only install what's needed
 - **Add LABELs** - Require annotations supported by GHCR (source repo, description, and licenses) as well as other relevant OCI annotations.
 - **Include the docker build command used** - as a comment at the top of the Dockerfile: `# Build like: docker buildx build -t image-name -f Dockerfile --build-arg GIT_REF=main .`
@@ -235,6 +237,26 @@ Common fixes (see `references/docker-best-practices.md`):
 | Command not found | Missing PATH | Add `ENV PATH=...` |
 | SSL/TLS errors | Missing certs | Install `ca-certificates` |
 | Python build fails | Missing headers | Install `python3-dev`, `libffi-dev`, `libssl-dev` |
+
+### Layer Size Check
+
+Once the build succeeds, check that no layer is oversized before pushing:
+
+```bash
+scripts/check_layer_sizes.sh image-name
+```
+
+It prints each layer with the instruction that created it and exits non-zero if any
+layer exceeds 5 GB. Two things to act on:
+
+- **An oversized layer** - split that `RUN` into several steps (see
+  `references/docker-best-practices.md`).
+- **A layer roughly the size of everything before it** - almost always a `chmod -R` or
+  `chown -R` copy-up duplicating files from earlier layers. Fix the permissions in the
+  step that creates the files instead.
+
+After pushing, re-run with `--remote` to see the compressed blob sizes the registry
+actually stores; `docker history` reports uncompressed sizes and overestimates.
 
 ### Refinement Loop
 1. Analyse the error
