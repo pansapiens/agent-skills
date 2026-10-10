@@ -1,0 +1,244 @@
+---
+title: "M3 Weather Report"
+subtitle: "PERIOD_SUBTITLE"
+date: "REPORT_DATE"
+format:
+  html:
+    theme: cosmo
+    embed-resources: true
+    toc: true
+    toc-depth: 2
+    fig-align: center
+    code-fold: true
+    code-summary: "show the working"
+    grid:
+      body-width: 1000px
+execute:
+  echo: false
+  warning: false
+---
+
+<!--
+This is a TEMPLATE, not a fill-in-the-blanks form. Copy it, then rewrite the
+prose. Every heading below is a suggestion; drop the segments that have no story
+this period and add ones that do. A weather report that reads identically every
+day is a weather report nobody watches.
+
+Replace PERIOD_SUBTITLE, REPORT_DATE, PERIOD_DIR and SKILL_SCRIPTS before
+rendering. See references/voice.md for how this should sound and
+references/data-notes.md for what the numbers can and cannot support.
+-->
+
+```{python}
+#| tags: [setup]
+import sys, json
+sys.path.insert(0, r"SKILL_SCRIPTS")
+from wxplots import Report
+rpt = Report(r"PERIOD_DIR")
+d = rpt.digest
+h = d["headline"]
+ids = d.get("identities", {})
+anon = d.get("names_mode") == "anon"
+
+def who(u):
+    r = ids.get(u)
+    if not r: return f"`{u}`"
+    if anon: return r["handle"]
+    return f"{r.get('name') or u} (`{u}`)"
+```
+
+::: {.callout-note appearance="simple"}
+## Today's forecast at a glance
+
+<!-- Two or three sentences. This is the bit read aloud over the map. Give the
+     mood first and the numbers second. -->
+
+:::
+
+```{python}
+from IPython.display import Markdown
+Markdown(f"""
+|  |  |
+|---|---|
+| **Cluster load** | {h['utilisation_pct']}% of {h['cluster_cores']:,} cores |
+| **Compute delivered** | {h['core_hours_delivered']:,.0f} core-hours, {h['gpu_hours_delivered']:,.0f} GPU-hours |
+| **Jobs finished** | {h['jobs_finished']:,} |
+| **Researchers on deck** | {h['distinct_users']} across {h['distinct_accounts']} projects |
+| **Queued right now** | {h['queued_pending_now']:,} pending |
+| **Success rate** | {d['outcomes']['success_pct']}% |
+""")
+```
+
+## The satellite view
+
+<!-- Narrate the heatmap: which blocks are solid, which are pale, what that
+     means for someone deciding where to submit tomorrow. -->
+
+```{python}
+#| fig-cap: "Each row is a node. Darker means more of its cores were held."
+rpt.node_heatmap()
+```
+
+```{python}
+#| fig-cap: "Cores under allocation through the period."
+rpt.timeline()
+```
+
+## GPU synoptics
+
+<!-- The accelerators tell a different story from the cores, and usually a more
+     urgent one. A GPU node can be pale on the CPU map above and black on this
+     one.
+
+     Split by model first -- the current generation and the previous one run at
+     wildly different occupancy, and the aggregate describes neither. Then,
+     before recommending the idle older cards to anyone, split the idle
+     GPU-hours by PARTITION and check `scontrol show partition <name>` for
+     AllowQos. Older cards are typically idle because they sit in private
+     partitions, behind `--qos=irq`, or on desktop nodes -- not because nobody
+     thought to use them. See references/data-notes.md, "Idle GPUs are usually
+     idle for a reason"; skipping that check produces a confident
+     recommendation to submit to capacity the reader cannot reach. -->
+
+```{python}
+#| fig-cap: "GPU nodes only. Darker means more of that node's accelerators were held."
+rpt.gpu_heatmap()
+```
+
+```{python}
+rpt.gpu_by_type()
+```
+
+```{python}
+#| fig-cap: "GPU partitions, measured in accelerators rather than cores."
+rpt.gpu_partition_utilisation()
+```
+
+## Pressure systems
+
+<!-- Which partitions are under pressure and which are becalmed. Name the quiet
+     ones -- steering people there is the single most useful thing this report
+     can do.
+
+     This chart is CPU partitions only, deliberately. A GPU partition's core
+     utilisation says more about how many cores the vendor bolted next to each
+     accelerator than about demand, so those live in the GPU section above. -->
+
+```{python}
+rpt.partition_utilisation()
+```
+
+## Precipitation: what fell over
+
+<!-- Failures, timeouts, OOM kills. Lead with the core-hours lost, because that
+     is the number that motivates anyone to change anything. -->
+
+```{python}
+rpt.state_bars()
+```
+
+## Wind chill: the queue
+
+<!-- Waiting times, split into two plots because CPU and GPU are separate
+     queues: one waits for cores, the other for accelerators and per-user GPU
+     limits. Quote the two medians separately -- a pooled median usually
+     describes neither population.
+
+     If a pending reason dominates (a QOS limit rather than genuine scarcity),
+     say so; that is actionable in a way that "the cluster is busy" is not. The
+     digest breaks pending reasons down by CPU and GPU too. -->
+
+```{python}
+rpt.wait_distribution_cpu()
+```
+
+```{python}
+rpt.wait_distribution_gpu()
+```
+
+## Heavy weather: the largest systems
+
+<!-- The biggest consumers. Be factual and generous: large jobs are the point of
+     the cluster, not a crime. Note efficiency only where it is measured and
+     clearly poor.
+
+     CPU partitions only, for the same reason as above: a GPU job holding twelve
+     cores to feed one accelerator would score terribly here while doing nothing
+     wrong. Quote job IDs alongside job names so anyone named can go and look at
+     their own job with `jobstats <id>`. -->
+
+```{python}
+rpt.efficiency_scatter()
+```
+
+### The memory ledger
+
+<!-- Over-allocated memory is the most defensible efficiency story available, and
+     usually the most useful: an over-sized --mem blocks a whole node for other
+     people far more effectively than idle cores do. The table is generated so
+     every report presents it the same way; write a sentence or two around it
+     rather than restating the rows. -->
+
+```{python}
+rpt.memory_ledger(scope="batch")
+```
+
+<!-- Desktops are a separate table because they deserve a separate verdict: a
+     Strudel desktop sitting on memory with an idle CPU is the partition working
+     as intended. Frame this one as capacity planning -- how desktops are sized,
+     how long people leave them open -- not as waste. Do not reuse the paragraph
+     you just wrote above. -->
+
+```{python}
+rpt.memory_ledger(scope="desktop")
+```
+
+### Nodes held but not used
+
+<!-- Multi-node jobs whose steps all ran on one node. Drop this segment if the
+     table is empty or trivial. Interactive and desktop rows are the clear cases;
+     for batch jobs with unrecorded CPU, an MPI code launched over ssh looks the
+     same, so frame those as a question. The fix is usually --nodes=1. -->
+
+```{python}
+rpt.idle_node_jobs()
+```
+
+## Local observations
+
+<!-- The human texture: unusual job names, small-hours submissions, weekend
+     workers, workflow managers, desktop sessions. Warm, never mocking. -->
+
+```{python}
+#| fig-cap: "Submission times around the clock."
+rpt.submission_clock()
+```
+
+## Outlook
+
+<!-- What someone should do differently tomorrow. Two or three concrete,
+     specific suggestions grounded in the numbers above. -->
+
+---
+
+::: {.callout-caution collapse="true"}
+## Small print
+
+```{python}
+Markdown(f"""
+Window: {h['window_start'][:16]} to {h['window_end'][:16]} (local time).
+Collected {d['meta']['collected_at'][:16]} from the SLURM accounting database.
+
+- Core-hours are **allocated**, not necessarily used: they count cores held by a
+  job for the time it held them.
+- CPU efficiency comes from `TotalCPU` on job steps. {d['efficiency']['unmeasured_jobs']:,} sizeable
+  jobs ({d['efficiency']['unmeasured_core_hours']:,.0f} core-hours) recorded essentially no CPU time.
+  That is usually an accounting gap for MPI codes launched with `mpirun` rather
+  than `srun`, so those jobs are excluded from efficiency figures rather than
+  treated as idle.
+- `MaxRSS` is the peak of a single task, so memory figures under-report
+  multi-process jobs.
+- Node-level allocation splits a multi-node job's cores evenly across its nodes.
+""")
+```
+:::
