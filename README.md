@@ -17,6 +17,7 @@ My handcrafted agent skills and `AGENTS.md`.
 ### LLM related skills
 
 - [create-agents-md](skills/create-agents-md/SKILL.md): Create or update an `AGENTS.md` file to help future coding agents work effectively in this repository.
+- [deslop](skills/deslop/SKILL.md): Remove AI writing patterns from prose (from [stephenturner/skill-deslop](https://github.com/stephenturner/skill-deslop)).
 
 ### Misc
 
