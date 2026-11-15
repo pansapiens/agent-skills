@@ -55,7 +55,7 @@ format:
     toc: true
     toc-depth: 3
     number-sections: true
-    code-fold: true          # the report reads as prose
+    code-fold: true          # folded in the page; the source is still in the HTML
     code-tools: true
     page-layout: full        # wide figures don't need horizontal scrolling
     fig-width: 8.5
@@ -65,12 +65,25 @@ crossref:
   chapters: true             # gives "Figure 6.7.1" / "Table 1.2" style numbering
 
 execute:
+  echo: true                 # code stays in the HTML, so the artefact alone is reproducible
+  freeze: auto               # not cache: true when prose uses inline `{python}` — see below
   warning: false
 
 jupyter: python3
 mermaid:
   theme: neutral
 ```
+
+`echo: true` is the default. The HTML is often the only artefact a reader has, and with
+`code-fold: true` the source is folded but still in the page, so a figure or a quoted number
+can be reproduced from that file alone. `echo: false` drops the code from the HTML.
+
+Use `freeze: auto`, not `cache: true`, whenever prose quotes numbers with inline `` `{python}` ``
+expressions. Jupyter Cache cannot resolve those expressions, so a cached render leaves them
+unevaluated or stale. `freeze: auto` re-executes a document only when its source changes and
+stores the result under `_freeze/`.
+
+Use `cache: true` only in a document that has no inline `` `{python}` `` expressions.
 
 `crossref: chapters: true` is what produces the chapter-prefixed figure and table numbers the
 report requires. Without it every figure in the book is numbered from a single flat sequence.

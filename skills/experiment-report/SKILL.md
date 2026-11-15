@@ -87,7 +87,7 @@ Work through [checklists.md](references/checklists.md) before calling an edit do
 
 # Reference documents
 
-- [quarto-book-setup.md](references/quarto-book-setup.md) - directory layout, `_quarto.yml` (including the `crossref` setting that gives chapter-prefixed numbering), labels and captions, cross-reference sweeps, callouts.
+- [quarto-book-setup.md](references/quarto-book-setup.md) - directory layout, `_quarto.yml` (`echo: true`, `freeze: auto` rather than `cache: true` when prose uses inline `` `{python}` ``, and the `crossref` setting that gives chapter-prefixed numbering), labels and captions, cross-reference sweeps, callouts.
 - [rendering-and-gotchas.md](references/rendering-and-gotchas.md) - rendering, stale output, verifying a render actually produced output, Python cell traps.
 - [keeping-results-current.md](references/keeping-results-current.md) - quoting numbers, superseding a result, what belongs in the Experiment log.
 - [figures.md](references/figures.md) - what a figure may and may not be evidence for, scale choice, plotting traps.

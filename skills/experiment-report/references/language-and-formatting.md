@@ -8,4 +8,8 @@ Don't use emojis in documentation unless explicitly asked, or particularly appro
 
 DO NOT use the emdash ('—') character in prose - use a normal dash -.
 
+# Scientific writing
+
+Write in the style of a scientific lab book or paper, with a clear aim and purpose, methodology, results, discussion and conclusion. Avoid subheadings beginning with "What" or "Where" - these are typically initial title words that result in 'Claudisms' that don't sit well in a scientific report. The title of a section should be more related to the subject with specific nouns - the finding is secondary and may not always be revealed in the title.
+
 Use the `deslop` skill to remove typical Claudisms from the text.
