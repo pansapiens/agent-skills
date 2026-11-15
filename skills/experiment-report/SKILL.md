@@ -14,7 +14,7 @@ Think of it a bit like a lab notebook for computational experiments.
 
 - Every table and figure must be numbered, eg: Figure 6.7.1 or Table 1.2
 
-- For detailed rules and guidance on language use and formatting, see [language-and-formatting.md](references/language-and-formatting.md).
+- For detailed rules and guidance on language use and formatting, see [language-and-formatting.md](references/language-and-formatting.md). Use the `deslop` skill.
 
 - Unless otherwise specified, put the documents in `./report`.
 

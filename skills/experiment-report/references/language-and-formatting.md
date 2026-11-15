@@ -7,3 +7,5 @@ Rather than talking about the "price we pay" or "what this buys us", talk in ter
 Don't use emojis in documentation unless explicitly asked, or particularly appropriate.
 
 DO NOT use the emdash ('—') character in prose - use a normal dash -.
+
+Use the `deslop` skill to remove typical Claudisms from the text.
