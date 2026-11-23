@@ -13,6 +13,7 @@ My handcrafted agent skills and `AGENTS.md`.
 ### Structural biology & bioinformatics
 
 - [analyse-protein-structure](skills/analyse-protein-structure/SKILL.md): Analyze protein structures: PDB/CIF files, protein-protein/ligand interactions, FoldSeek/CATH similarity search.
+- [molstar-story](skills/molstar-story/SKILL.md): Create interactive Mol* Stories web pages (`.html` and `.mvsx`) using `molviewspec` for structural walkthroughs, epitopes, and binder designs.
 
 ### LLM related skills
 
