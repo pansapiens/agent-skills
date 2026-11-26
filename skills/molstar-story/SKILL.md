@@ -44,6 +44,32 @@ A clear structural design story typically follows 4–8 snapshots:
 5. **Exploded displacement view (animated)** — Keep the target + top binder stationary while animating the displaced endogenous partner outward along the interface normal.
 6. **Full-complex summary** — Return to the overview frame with representative binders at each targeted site.
 
+### Styling & Sidebar Legend Conventions
+
+- **Prefer sticks over ball-and-stick for sidechains:** MolViewSpec's `ball_and_stick` representation defaults to chunky atom spheres. Render sidechains as clean uniform sticks (licorice) by setting `sizeAspectRatio: 1` via `molstar_representation_params`:
+  ```python
+  rep = (
+      struct.component(selector=exprs)
+      .representation(
+          type="ball_and_stick",
+          size_factor=0.65,
+          custom={"molstar_representation_params": {"sizeAspectRatio": 1}},
+      )
+      .color(color=color)
+  )
+  ```
+- **Color functionally distinct sidechain groups separately:** In interface close-ups, give each key interaction role its own distinct color (e.g. P1 anchor vs S1 pocket vs hydrophobic rim vs disulfide) rather than coloring all interface sticks identically.
+- **Use inline color-swatch squares in sidebar text instead of only naming colors:** Mol\* Stories (`mvs-stories.js`) renders Markdown through `react-markdown` with `skipHtml: true`, so raw HTML like `<span style="color:...">` is silently stripped. Instead, use the native `color-swatch` image extension so the sidebar reads like a true visual legend matching the exact 3D hex colors in both `.html` and `.mvsx`:
+  ```python
+  def sw(hex_color: str) -> str:
+      return f"![](!color-swatch={hex_color})"
+  ```
+  - Example: `f"- {sw('#2563eb')} **P1 Arg16 (royal blue sticks)** -> {sw('#ef4444')} **Asp208 (crimson sticks)**"`
+  - Never wrap `sw(...)` inside inline code backticks (that renders the syntax literally).
+  - Because the Mol\* Stories sidebar background is light warm grey (`#F6F5F3`), use a slightly darker swatch hex (e.g. `#b8c0cc`) when representing very light transparent grey (`#d4d8e0`) partners so the square remains clearly legible.
+- **Avoid LaTeX `$...$` math in descriptions:** `mvs-stories.js` does not include MathJax/KaTeX, so `$E^*$` or `$K_i = 22$` render with literal dollar signs. Use plain Unicode (`E*`, `Ki = 22 nM`, `χ1`, `β-strand`, `⇌`, `Å`) instead.
+- **Optional interactive hover/focus links:** Attach `ref="my_site"` to a component and link to it in Markdown with `[His67](!highlight-refs=my_site&focus-refs=my_site)` so hovering highlights and clicking focuses the 3D residue.
+
 ## Key Gotchas (`molviewspec >= 1.8`)
 
 Check installed API signatures on demand when unsure:
@@ -112,6 +138,23 @@ def add_cartoon(
     return s
 
 
+def sw(hex_color: str) -> str:
+    return f"![](!color-swatch={hex_color})"
+
+
+def add_sticks(struct, res_ids: list[int], color: str, size_factor: float = 0.65):
+    exprs = [mvs.ComponentExpression(label_seq_id=r) for r in res_ids]
+    return (
+        struct.component(selector=exprs)
+        .representation(
+            type="ball_and_stick",
+            size_factor=size_factor,
+            custom={"molstar_representation_params": {"sizeAspectRatio": 1}},
+        )
+        .color(color=color)
+    )
+
+
 def add_hotspots(struct, res_ids: list[int], color: str):
     for r in res_ids:
         (
@@ -129,7 +172,11 @@ def snap_overview() -> mvs.Snapshot:
     b.camera(position=(0.0, 0.0, 85.0), target=(0.0, 0.0, 0.0), up=(0.0, 1.0, 0.0))
     return b.get_snapshot(
         title="1. Target & Native Interface",
-        description="### PD-L1 Epitope\n\nHotspot residues (magenta spheres) overlap the native **PD-1** interface (light transparent grey).",
+        description=(
+            f"### PD-L1 Epitope\n\n"
+            f"{sw('#d946ef')} **Hotspot residues (magenta spheres)** on {sw('#2563eb')} **PD-L1** "
+            f"overlap the native {sw('#b8c0cc')} **PD-1** interface (light transparent grey)."
+        ),
         description_format="markdown",
         linger_duration_ms=7000,
         transition_duration_ms=1000,
