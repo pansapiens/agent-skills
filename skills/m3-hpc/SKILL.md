@@ -235,6 +235,7 @@ envs_dirs:
 - **Multithreaded Jobs**: To run parallel jobs using multithreading, OpenMP, or hybrid MPI/OpenMP configurations, see the [Multithreaded and Hybrid Jobs](references/multithreading.md) reference document.
 - **Resource Efficiency**: To monitor active jobs, audit completed jobs, and optimise resource usage, see the [Resource Efficiency and Monitoring](references/resource-efficiency.md) reference document.
 - **Environment Modules**: To search, load, unload, list, or inspect software environment modules and request licensed software, see the [Environment Modules](references/modules.md) reference document.
+- **Networking / IP ranges**: For M3's public IP range, login/DTN node addresses, compute node NAT egress, and firewall allowlisting guidance, see the [Networking and IP Ranges](references/networking.md) reference document.
 
 ## Partitions and QoS
 
